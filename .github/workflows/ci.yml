@@ -25,6 +25,7 @@ jobs:
         run: |
           node --check app.js
           node --check room-mode.js
+          node --check room-qr.js
           node --check room-entry.js
           node --check sw.js
           node --check supabase-config.js
