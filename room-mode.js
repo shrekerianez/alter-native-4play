@@ -90,6 +90,27 @@
     return copy;
   }
 
+  function cloneState(value) {
+    return typeof structuredClone === 'function'
+      ? structuredClone(value)
+      : JSON.parse(JSON.stringify(value));
+  }
+
+  function canStartPlayerCount(count) {
+    return count === 2 || count === 4;
+  }
+
+  function makeTeams(players) {
+    const ids = shuffle(players.map(p => p.id));
+    if (ids.length === 2) return [[ids[0]], [ids[1]]];
+    if (ids.length === 4) return [[ids[0], ids[1]], [ids[2], ids[3]]];
+    return [[], []];
+  }
+
+  function isDuel(state = RT.state) {
+    return Array.isArray(state?.teams) && state.teams.length === 2 && state.teams.every(team => team.length === 1);
+  }
+
   function clearTimer() {
     clearInterval(RT.timerId);
     RT.timerId = null;
@@ -118,7 +139,7 @@
       <section class="screen room-screen">
         ${topbar('room-exit')}
         <h2 class="section-title">Комната</h2>
-        <p class="section-copy">Четыре iPhone, одна игра. Карточки, таймер и счёт синхронизируются между всеми.</p>
+        <p class="section-copy">От двух до четырёх iPhone. Вдвоём играете 1 на 1, вчетвером — 2 × 2. Всё синхронизируется между телефонами.</p>
         ${!configured() ? `<div class="room-warning"><strong>Realtime ещё не подключён</strong><span>Код комнаты уже готов в приложении, но для связи между iPhone нужно один раз указать Supabase Project URL и Publishable key.</span></div>` : ''}
         <div class="room-choice">
           <button class="room-choice-card" type="button" data-room-action="create-form" ${configured() ? '' : 'disabled'}>
@@ -166,15 +187,20 @@
   function renderLobby() {
     clearTimer();
     const players = RT.state?.players?.length ? RT.state.players : RT.players;
-    const full = players.length === 4;
+    const canStart = canStartPlayerCount(players.length);
+    const duelReady = players.length === 2;
     const hostId = RT.state?.hostId || players[0]?.id;
+    const waitingText = players.length === 3
+      ? 'Нужен четвёртый игрок. Для дуэли в комнате должно быть ровно двое.'
+      : 'Ждём ещё одного игрока';
+
     RT.root.innerHTML = `
       <section class="screen room-screen">
         ${topbar()}
         <div class="room-code-block">
           <span>Код комнаты</span>
           <strong>${RT.esc(RT.code)}</strong>
-          <small>${players.length} из 4 игроков</small>
+          <small>${players.length} из 4 игроков · минимум 2</small>
         </div>
         <div class="room-share-row">
           <button class="btn btn-secondary" type="button" data-room-action="share-room">Поделиться ссылкой</button>
@@ -182,15 +208,17 @@
         <div class="players-list">
           ${[0,1,2,3].map(index => {
             const p = players[index];
-            if (!p) return `<div class="player-row empty"><span class="player-avatar">${index + 1}</span><span><strong>Ждём игрока…</strong><small>Пусть откроет ссылку или введёт код</small></span></div>`;
+            if (!p) return `<div class="player-row empty"><span class="player-avatar">${index + 1}</span><span><strong>Свободное место</strong><small>${index === 1 ? 'Уже после второго игрока можно начинать' : 'Можно дождаться четверых для 2 × 2'}</small></span></div>`;
             const me = p.id === RT.playerId;
             const host = p.id === hostId;
             return `<div class="player-row"><span class="player-avatar">${RT.esc(p.name.slice(0,1).toUpperCase())}</span><span><strong>${RT.esc(p.name)}${me ? ' · ты' : ''}</strong><small>${host ? 'Ведущий · ' : ''}онлайн</small></span><span class="presence-check">✓</span></div>`;
           }).join('')}
         </div>
         <div class="bottom-actions">
-          ${RT.isHost ? `<button class="btn btn-primary" type="button" data-room-action="prepare-game" ${full ? '' : 'disabled'}>Разделить на команды</button>` : `<div class="waiting-pill">${full ? 'Ведущий сейчас начнёт игру' : 'Ждём остальных игроков'}</div>`}
-          <p class="helper">Если ведущий выйдет, роль автоматически перейдёт следующему подключённому игроку.</p>
+          ${RT.isHost
+            ? `<button class="btn btn-primary" type="button" data-room-action="prepare-game" ${canStart ? '' : 'disabled'}>${duelReady ? 'Играть вдвоём' : 'Разделить на команды'}</button>`
+            : `<div class="waiting-pill">${canStart ? 'Ведущий может начинать игру' : waitingText}</div>`}
+          <p class="helper">2 игрока — дуэль 1 на 1. 4 игрока — две команды по двое.</p>
         </div>
       </section>`;
   }
@@ -206,12 +234,18 @@
   function renderSetup() {
     clearTimer();
     const s = RT.state;
+    const duel = isDuel(s);
     RT.root.innerHTML = `
       <section class="screen room-screen">
         ${topbar()}
-        <h2 class="section-title">Команды готовы</h2>
+        <h2 class="section-title">${duel ? 'Дуэль готова' : 'Команды готовы'}</h2>
         <div class="team-grid">
-          ${s.teams.map((team, i) => `<article class="team-card"><div class="team-label">Команда ${i + 1}</div><div class="team-name">${i === 0 ? 'Красные' : 'Фиолетовые'}</div><div class="team-members">${team.map(id => RT.esc(nameById(id))).join(' + ')}</div></article>`).join('')}
+          ${s.teams.map((team, i) => {
+            if (duel) {
+              return `<article class="team-card"><div class="team-label">Игрок ${i + 1}</div><div class="team-name">${RT.esc(nameById(team[0]))}</div><div class="team-members">${i === 0 ? 'Объясняет первым' : 'Объясняет вторым'}</div></article>`;
+            }
+            return `<article class="team-card"><div class="team-label">Команда ${i + 1}</div><div class="team-name">${i === 0 ? 'Красные' : 'Фиолетовые'}</div><div class="team-members">${team.map(id => RT.esc(nameById(id))).join(' + ')}</div></article>`;
+          }).join('')}
         </div>
         <h3 class="room-subtitle">Категории</h3>
         <div class="room-category-grid">
@@ -222,8 +256,10 @@
           }).join('')}
         </div>
         <div class="bottom-actions">
-          ${RT.isHost ? `<button class="btn btn-primary" type="button" data-room-action="start-match" ${s.selectedCategories.length ? '' : 'disabled'}>Начать игру</button><button class="btn btn-secondary" type="button" data-room-action="reshuffle-teams">Перемешать команды</button>` : `<div class="waiting-pill">Ведущий настраивает игру</div>`}
-          <p class="helper">8 ходов · 60 секунд · карточку видит только объясняющий</p>
+          ${RT.isHost
+            ? `<button class="btn btn-primary" type="button" data-room-action="start-match" ${s.selectedCategories.length ? '' : 'disabled'}>Начать игру</button><button class="btn btn-secondary" type="button" data-room-action="reshuffle-teams">${duel ? 'Поменять, кто начинает' : 'Перемешать команды'}</button>`
+            : `<div class="waiting-pill">Ведущий настраивает игру</div>`}
+          <p class="helper">${duel ? '1 на 1' : '2 × 2'} · 8 ходов · 60 секунд · карточку видит только объясняющий</p>
         </div>
       </section>`;
   }
@@ -231,30 +267,42 @@
   function roles(s = RT.state) {
     const team = s.teams[s.turn];
     const index = s.explainerIndex[s.turn] % team.length;
-    return {
-      team,
-      explainerId: team[index],
-      guesserId: team[(index + 1) % team.length]
-    };
+    const duel = isDuel(s);
+    const explainerId = team[index];
+    const guesserId = duel
+      ? s.teams[s.turn === 0 ? 1 : 0][0]
+      : team[(index + 1) % team.length];
+    return { team, explainerId, guesserId, duel };
+  }
+
+  function scoreLabels(s) {
+    if (isDuel(s)) {
+      return [nameById(s.teams[0][0]), nameById(s.teams[1][0])];
+    }
+    return ['Команда 1', 'Команда 2'];
   }
 
   function renderReady() {
     clearTimer();
     const s = RT.state;
     const r = roles(s);
+    const labels = scoreLabels(s);
     const isExplainer = RT.playerId === r.explainerId;
     const isGuesser = RT.playerId === r.guesserId;
     const inActiveTeam = r.team.includes(RT.playerId);
     let roleText = 'Соперники готовятся следить за нарушениями.';
     if (isExplainer) roleText = 'Твой ход. Карточки появятся только на этом iPhone.';
-    else if (isGuesser) roleText = 'Ты угадываешь. На твоём экране ответа не будет.';
+    else if (isGuesser) roleText = r.duel
+      ? 'Ты угадываешь слова соперника. Потом поменяетесь ролями.'
+      : 'Ты угадываешь. На твоём экране ответа не будет.';
     else if (!inActiveTeam) roleText = 'Следи за запрещёнными словами. Нарушение можно будет отметить со своего iPhone.';
+
     RT.root.innerHTML = `
       <section class="screen room-screen">
         ${topbar()}
-        <div class="room-scorebar"><span>Команда 1 <strong>${s.scores[0]}</strong></span><span>${s.currentTurn}/${s.totalTurns}</span><span>Команда 2 <strong>${s.scores[1]}</strong></span></div>
+        <div class="room-scorebar"><span>${RT.esc(labels[0])} <strong>${s.scores[0]}</strong></span><span>${s.currentTurn}/${s.totalTurns}</span><span>${RT.esc(labels[1])} <strong>${s.scores[1]}</strong></span></div>
         <div class="round-ready">
-          <div class="round-team">Ход команды ${s.turn + 1}</div>
+          <div class="round-team">${r.duel ? `Ход: ${RT.esc(nameById(r.explainerId))}` : `Ход команды ${s.turn + 1}`}</div>
           <h2 class="round-title">${RT.esc(nameById(r.explainerId))} объясняет</h2>
           <div class="round-members">${RT.esc(nameById(r.guesserId))} угадывает</div>
           <p class="round-note">${RT.esc(roleText)}</p>
@@ -272,6 +320,7 @@
   function renderRound() {
     const s = RT.state;
     const r = roles(s);
+    const labels = scoreLabels(s);
     const card = currentCard();
     const isExplainer = RT.playerId === r.explainerId;
     const isGuesser = RT.playerId === r.guesserId;
@@ -290,9 +339,9 @@
     RT.root.innerHTML = `
       <section class="screen room-screen">
         <div class="game-head">
-          <div class="score">Команда 1<br><strong>${s.scores[0]}</strong></div>
+          <div class="score">${RT.esc(labels[0])}<br><strong>${s.scores[0]}</strong></div>
           <div id="roomTimer" class="timer">60</div>
-          <div class="score right">Команда 2<br><strong>${s.scores[1]}</strong></div>
+          <div class="score right">${RT.esc(labels[1])}<br><strong>${s.scores[1]}</strong></div>
         </div>
         <div class="turn-label">${RT.esc(nameById(r.explainerId))} → ${RT.esc(nameById(r.guesserId))}</div>
         <div class="card-wrap">${center}</div>
@@ -305,15 +354,22 @@
   function renderFinal() {
     clearTimer();
     const s = RT.state;
+    const duel = isDuel(s);
     const winner = s.scores[0] === s.scores[1] ? -1 : (s.scores[0] > s.scores[1] ? 0 : 1);
+    const winnerTitle = winner < 0
+      ? 'Ничья'
+      : duel
+        ? `Победил ${RT.esc(nameById(s.teams[winner][0]))}`
+        : `Победила команда ${winner + 1}`;
+
     RT.root.innerHTML = `
       <section class="screen room-screen">
         ${topbar()}
         <div class="result-card room-final">
           <div class="result-emoji">${winner < 0 ? '🤝' : '🏆'}</div>
-          <h2 class="result-title">${winner < 0 ? 'Ничья' : `Победила команда ${winner + 1}`}</h2>
+          <h2 class="result-title">${winnerTitle}</h2>
           <div class="result-score">${s.scores[0]} : ${s.scores[1]}</div>
-          ${winner >= 0 ? `<p class="section-copy">${s.teams[winner].map(id => RT.esc(nameById(id))).join(' + ')}</p>` : ''}
+          ${winner >= 0 && !duel ? `<p class="section-copy">${s.teams[winner].map(id => RT.esc(nameById(id))).join(' + ')}</p>` : ''}
         </div>
         <div class="bottom-actions">${RT.isHost ? `<button class="btn btn-primary" type="button" data-room-action="rematch">Реванш</button>` : `<div class="waiting-pill">Ведущий решает судьбу реванша</div>`}<button class="btn btn-secondary" type="button" data-room-action="room-exit">Выйти из комнаты</button></div>
       </section>`;
@@ -422,7 +478,9 @@
             RT.connectionStatus = 'connected';
             await RT.channel.track({ id: RT.playerId, name: RT.playerName, joinedAt: Date.now() });
             await RT.channel.send({ type:'broadcast', event:'hello', payload:{id:RT.playerId} });
-            const url = new URL(location.href); url.searchParams.set('room', RT.code); history.replaceState(null,'',url);
+            const url = new URL(location.href);
+            url.searchParams.set('room', RT.code);
+            history.replaceState(null,'',url);
           } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             RT.connectionStatus = 'error';
             renderRoomError('Не удалось подключиться', 'Realtime не отвечает. Проверь Project URL, ключ и интернет.');
@@ -473,52 +531,91 @@
     if (!RT.isHost || !RT.state) return;
     const actorId = String(payload?.actorId || '');
     const action = payload?.action || {};
-    const s = structuredClone ? structuredClone(RT.state) : JSON.parse(JSON.stringify(RT.state));
+    const s = cloneState(RT.state);
 
     if (action.type === 'toggle-category' && actorId === s.hostId && s.phase === 'setup') {
-      s.selectedCategories = s.selectedCategories.includes(action.category) ? s.selectedCategories.filter(x => x !== action.category) : [...s.selectedCategories, action.category];
+      s.selectedCategories = s.selectedCategories.includes(action.category)
+        ? s.selectedCategories.filter(x => x !== action.category)
+        : [...s.selectedCategories, action.category];
     } else if (action.type === 'reshuffle-teams' && actorId === s.hostId && s.phase === 'setup') {
-      const ids = shuffle(s.players.map(p => p.id)); s.teams = [[ids[0],ids[1]],[ids[2],ids[3]]];
+      s.teams = makeTeams(s.players);
     } else if (action.type === 'start-match' && actorId === s.hostId && s.phase === 'setup' && s.selectedCategories.length) {
-      s.scores = [0,0]; s.turn = 0; s.currentTurn = 1; s.explainerIndex = [0,0]; s.deckPos = -1;
+      s.scores = [0,0];
+      s.turn = 0;
+      s.currentTurn = 1;
+      s.explainerIndex = [0,0];
+      s.deckPos = -1;
       s.deckIds = shuffle(RT.cards.filter(c => s.selectedCategories.includes(c.category)).map(c => c.id));
-      s.currentCardId = null; s.roundEndsAt = 0; s.phase = 'ready';
+      s.currentCardId = null;
+      s.roundEndsAt = 0;
+      s.phase = 'ready';
     } else if (action.type === 'start-round' && s.phase === 'ready') {
-      const r = roles(s); if (actorId !== r.explainerId) return;
-      nextDeckCard(s); s.roundEndsAt = Date.now() + 60000; s.phase = 'round';
+      const r = roles(s);
+      if (actorId !== r.explainerId) return;
+      nextDeckCard(s);
+      s.roundEndsAt = Date.now() + 60000;
+      s.phase = 'round';
     } else if (action.type === 'score' && s.phase === 'round' && action.cardId === s.currentCardId) {
-      const r = roles(s); const isExplainer = actorId === r.explainerId; const isOpponent = !r.team.includes(actorId);
+      const r = roles(s);
+      const isExplainer = actorId === r.explainerId;
+      const isOpponent = !r.team.includes(actorId);
       const delta = Number(action.delta);
       if (!((isExplainer && (delta === 0 || delta === 1)) || (isOpponent && delta === -1))) return;
-      s.scores[s.turn] += delta; nextDeckCard(s);
+      s.scores[s.turn] += delta;
+      nextDeckCard(s);
     } else if (action.type === 'rematch' && actorId === s.hostId && s.phase === 'final') {
-      s.scores = [0,0]; s.turn = 0; s.currentTurn = 1; s.explainerIndex = [0,0]; s.deckPos = -1; s.currentCardId = null; s.roundEndsAt = 0; s.phase = 'ready';
+      s.scores = [0,0];
+      s.turn = 0;
+      s.currentTurn = 1;
+      s.explainerIndex = [0,0];
+      s.deckPos = -1;
+      s.currentCardId = null;
+      s.roundEndsAt = 0;
+      s.phase = 'ready';
     } else {
       return;
     }
+
     s.version = Number(s.version || 0) + 1;
     RT.state = s;
     await broadcastState();
   }
 
   async function hostPrepareGame() {
-    if (!RT.isHost || RT.players.length !== 4) return;
-    const ids = shuffle(RT.players.map(p => p.id));
+    if (!RT.isHost || !canStartPlayerCount(RT.players.length)) return;
     RT.state = {
-      ...(RT.state || {}), version:Number(RT.state?.version || 0) + 1, phase:'setup', hostId:RT.playerId,
-      players:[...RT.players], teams:[[ids[0],ids[1]],[ids[2],ids[3]]], selectedCategories:[...PACKS],
-      scores:[0,0], turn:0, currentTurn:1, totalTurns:8, explainerIndex:[0,0], deckIds:[], deckPos:-1, currentCardId:null, roundEndsAt:0
+      ...(RT.state || {}),
+      version: Number(RT.state?.version || 0) + 1,
+      phase: 'setup',
+      hostId: RT.playerId,
+      players: [...RT.players],
+      teams: makeTeams(RT.players),
+      selectedCategories: [...PACKS],
+      scores: [0,0],
+      turn: 0,
+      currentTurn: 1,
+      totalTurns: 8,
+      explainerIndex: [0,0],
+      deckIds: [],
+      deckPos: -1,
+      currentCardId: null,
+      roundEndsAt: 0
     };
     await broadcastState();
   }
 
   async function hostEndRound() {
     if (!RT.isHost || RT.state?.phase !== 'round') return;
-    const s = structuredClone ? structuredClone(RT.state) : JSON.parse(JSON.stringify(RT.state));
+    const s = cloneState(RT.state);
     s.roundEndsAt = 0;
     s.explainerIndex[s.turn] += 1;
-    if (s.currentTurn >= s.totalTurns) s.phase = 'final';
-    else { s.currentTurn += 1; s.turn = s.turn === 0 ? 1 : 0; s.phase = 'ready'; }
+    if (s.currentTurn >= s.totalTurns) {
+      s.phase = 'final';
+    } else {
+      s.currentTurn += 1;
+      s.turn = s.turn === 0 ? 1 : 0;
+      s.phase = 'ready';
+    }
     s.version = Number(s.version || 0) + 1;
     RT.state = s;
     await broadcastState();
@@ -528,12 +625,18 @@
     const data = { title:'4PLAY — Ну ты понял', text:`Заходи в комнату ${RT.code}`, url:roomUrl() };
     try {
       if (navigator.share) await navigator.share(data);
-      else { await navigator.clipboard.writeText(roomUrl()); showToast('Ссылка скопирована'); }
+      else {
+        await navigator.clipboard.writeText(roomUrl());
+        showToast('Ссылка скопирована');
+      }
     } catch {}
   }
 
   function showToast(text) {
-    const node = document.createElement('div'); node.className = 'room-toast'; node.textContent = text; document.body.appendChild(node);
+    const node = document.createElement('div');
+    node.className = 'room-toast';
+    node.textContent = text;
+    document.body.appendChild(node);
     setTimeout(() => node.remove(), 1800);
   }
 
@@ -550,8 +653,15 @@
     clearTimer();
     try { if (RT.channel) await RT.channel.untrack(); } catch {}
     try { if (RT.client && RT.channel) await RT.client.removeChannel(RT.channel); } catch {}
-    RT.client = null; RT.channel = null; RT.connectionStatus = 'idle'; RT.players = []; RT.isHost = false; RT.state = null;
-    const url = new URL(location.href); url.searchParams.delete('room'); history.replaceState(null,'',url);
+    RT.client = null;
+    RT.channel = null;
+    RT.connectionStatus = 'idle';
+    RT.players = [];
+    RT.isHost = false;
+    RT.state = null;
+    const url = new URL(location.href);
+    url.searchParams.delete('room');
+    history.replaceState(null,'',url);
     if (goHome) RT.onExit();
   }
 
@@ -567,13 +677,19 @@
 
   document.addEventListener('click', async event => {
     if (!RT.root || !RT.root.contains(event.target)) return;
+
     const score = event.target.closest('[data-room-score]');
     if (score && RT.state?.phase === 'round') {
       await sendAction({type:'score', delta:Number(score.dataset.roomScore), cardId:RT.state.currentCardId});
       return;
     }
+
     const category = event.target.closest('[data-room-category]');
-    if (category && RT.isHost) { await sendAction({type:'toggle-category', category:category.dataset.roomCategory}); return; }
+    if (category && RT.isHost) {
+      await sendAction({type:'toggle-category', category:category.dataset.roomCategory});
+      return;
+    }
+
     const button = event.target.closest('[data-room-action]');
     if (!button) return;
     switch (button.dataset.roomAction) {
@@ -600,8 +716,14 @@
     const name = form.elements.name.value.trim();
     const code = mode === 'join' ? cleanCode(form.elements.code.value) : generateCode();
     const error = form.querySelector('#roomFormError');
-    if (!name) { error.textContent = 'Напиши имя.'; return; }
-    if (mode === 'join' && code.length !== 5) { error.textContent = 'Код комнаты состоит из пяти символов.'; return; }
+    if (!name) {
+      error.textContent = 'Напиши имя.';
+      return;
+    }
+    if (mode === 'join' && code.length !== 5) {
+      error.textContent = 'Код комнаты состоит из пяти символов.';
+      return;
+    }
     await connectRoom(code, name, mode === 'create');
   });
 
