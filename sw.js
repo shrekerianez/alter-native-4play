@@ -1,10 +1,14 @@
-const CACHE_NAME = '4play-shell-v4';
+const CACHE_NAME = '4play-shell-v5';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './categories.css',
+  './room.css',
   './app.js',
+  './room-mode.js',
+  './room-entry.js',
+  './supabase-config.js',
   './manifest.webmanifest',
   './data/cards.json',
   './data/relationships.json',
