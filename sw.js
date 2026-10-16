@@ -1,11 +1,17 @@
-const CACHE_NAME = '4play-shell-v2';
+const CACHE_NAME = '4play-shell-v3';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
   './manifest.webmanifest',
-  './data/cards.json'
+  './data/cards.json',
+  './data/relationships.json',
+  './data/spicy.json',
+  './data/party.json',
+  './data/awkward.json',
+  './data/life.json',
+  './data/dark_humor.json'
 ];
 
 self.addEventListener('install', event => {
