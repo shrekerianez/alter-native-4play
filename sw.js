@@ -1,4 +1,4 @@
-const CACHE_NAME = '4play-shell-v9';
+const CACHE_NAME = '4play-shell-v10';
 const APP_SHELL = [
   './',
   './index.html',
@@ -6,6 +6,7 @@ const APP_SHELL = [
   './categories.css',
   './room.css',
   './room-qr.css',
+  './room-final.css',
   './app.js',
   './room-mode.js',
   './room-qr.js',
