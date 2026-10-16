@@ -1,12 +1,14 @@
-const CACHE_NAME = '4play-shell-v6';
+const CACHE_NAME = '4play-shell-v7';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './categories.css',
   './room.css',
+  './room-qr.css',
   './app.js',
   './room-mode.js',
+  './room-qr.js',
   './room-entry.js',
   './supabase-config.js',
   './manifest.webmanifest',
