@@ -14,6 +14,7 @@ const APP = {
   timerId: null,
   wakeLock: null,
   currentCard: null,
+  selectedCategories: ['relationships','spicy','party','awkward','life','dark_humor'],
   error: ''
 };
 
@@ -139,11 +140,52 @@ function renderTeams() {
         ${APP.teams.map((team, i) => `<article class="team-card"><div class="team-label">Команда ${i + 1}</div><div class="team-name">${i === 0 ? 'Красные' : 'Фиолетовые'}</div><div class="team-members">${team.map(esc).join(' + ')}</div></article>`).join('')}
       </div>
       <div class="bottom-actions">
-        <button class="btn btn-primary" type="button" data-action="start-game">Начать игру</button>
+        <button class="btn btn-primary" type="button" data-action="categories">Настроить игру</button>
         <button class="btn btn-secondary" type="button" data-action="shuffle-teams">Перемешать</button>
         <p class="helper">8 ходов · 60 секунд на ход · ${APP.cards.length} карточек в колоде</p>
       </div>
     </section>`;
+}
+
+function renderCategories() {
+  setScreen('categories');
+  const meta = [
+    ['relationships','❤️','Отношения','Бывшие, свидания, ревность и прочая человеческая дипломатия.'],
+    ['spicy','🔥','Погорячее 18+','Секс, флирт, неловкие взрослые ситуации.'],
+    ['party','🥂','Вечеринка','Похмелье, караоке, такси в четыре утра.'],
+    ['awkward','🫠','Неловко','Сообщение не тому, забытые имена и социальные катастрофы.'],
+    ['life','🧾','Жизнь','Работа, ипотека, ремонт и другие взрослые наказания.'],
+    ['dark_humor','💀','Чёрный юмор','Абсурд, самоирония и события, которые лучше переживать смеясь.']
+  ];
+  app.innerHTML = `
+    <section class="screen">
+      ${topbar('teams')}
+      <h2 class="section-title">Что играем?</h2>
+      <p class="section-copy">Выбери категории. В колоду попадут только они.</p>
+      <div class="category-list">
+        ${meta.map(([id,icon,title,copy]) => {
+          const selected = APP.selectedCategories.includes(id);
+          const count = APP.cards.filter(card => card.category === id).length;
+          return `<button class="category-row ${selected ? 'selected' : ''}" type="button" data-category="${id}" aria-pressed="${selected}">
+            <span class="category-icon">${icon}</span>
+            <span class="category-main"><strong>${title}</strong><small>${copy}</small></span>
+            <span class="category-count">${count}</span>
+            <span class="category-check">${selected ? '✓' : ''}</span>
+          </button>`;
+        }).join('')}
+      </div>
+      <div class="bottom-actions">
+        <button class="btn btn-primary" type="button" data-action="launch-game" ${APP.selectedCategories.length ? '' : 'disabled'}>Начать игру</button>
+        <p class="helper">Выбрано ${APP.selectedCategories.length} из 6 · ${APP.cards.filter(card => APP.selectedCategories.includes(card.category)).length} карточек</p>
+      </div>
+    </section>`;
+}
+
+function toggleCategory(id) {
+  APP.selectedCategories = APP.selectedCategories.includes(id)
+    ? APP.selectedCategories.filter(item => item !== id)
+    : [...APP.selectedCategories, id];
+  renderCategories();
 }
 
 function resetGame() {
@@ -154,7 +196,7 @@ function resetGame() {
   APP.explainerIndex = [0,0];
   APP.running = false;
   APP.seconds = 60;
-  APP.deck = shuffle(APP.cards);
+  APP.deck = shuffle(APP.cards.filter(card => APP.selectedCategories.includes(card.category)));
   APP.currentCard = null;
 }
 
@@ -192,7 +234,7 @@ function releaseWakeLock() {
 }
 
 function nextCard() {
-  if (!APP.deck.length) APP.deck = shuffle(APP.cards);
+  if (!APP.deck.length) APP.deck = shuffle(APP.cards.filter(card => APP.selectedCategories.includes(card.category)));
   APP.currentCard = APP.deck.pop() || { category: '4PLAY', prompt: 'Карточки закончились', forbidden: [] };
 }
 
@@ -296,6 +338,11 @@ function confirmExit() {
 }
 
 app.addEventListener('click', event => {
+  const categoryButton = event.target.closest('[data-category]');
+  if (categoryButton) {
+    toggleCategory(categoryButton.dataset.category);
+    return;
+  }
   const scoreButton = event.target.closest('[data-score]');
   if (scoreButton && APP.running) {
     scoreCard(Number(scoreButton.dataset.score));
@@ -308,7 +355,8 @@ app.addEventListener('click', event => {
     case 'home': renderHome(); break;
     case 'players': renderPlayers(); break;
     case 'shuffle-teams': shuffleTeams(); renderTeams(); break;
-    case 'start-game': resetGame(); renderRoundReady(); break;
+    case 'categories': renderCategories(); break;
+    case 'launch-game': if (APP.selectedCategories.length) { resetGame(); renderRoundReady(); } break;
     case 'start-round': startRound(); break;
     case 'end-round': endRound(); break;
     case 'confirm-exit': confirmExit(); break;
