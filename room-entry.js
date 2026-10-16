@@ -4,7 +4,7 @@
   let opening = false;
 
   function esc(value = '') {
-    return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
+    return String(value).replace(/[&<>'\"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));
   }
 
   async function loadCards() {
@@ -46,7 +46,7 @@
     roomButton.className = 'btn btn-secondary';
     roomButton.type = 'button';
     roomButton.dataset.roomLaunch = 'true';
-    roomButton.textContent = 'Комната · 4 iPhone';
+    roomButton.textContent = 'Комната · 2–4 iPhone';
     localButton.insertAdjacentElement('afterend', roomButton);
   }
 
