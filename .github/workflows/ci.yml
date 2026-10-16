@@ -1,0 +1,40 @@
+name: 4PLAY CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Check JavaScript syntax
+        run: |
+          node --check app.js
+          node --check room-mode.js
+          node --check room-entry.js
+          node --check sw.js
+          node --check supabase-config.js
+
+      - name: Validate card JSON
+        run: |
+          python - <<'PY'
+          import json, pathlib
+          for path in pathlib.Path('data').glob('*.json'):
+              with path.open(encoding='utf-8') as f:
+                  json.load(f)
+              print('OK', path)
+          PY
