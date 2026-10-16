@@ -9,7 +9,7 @@
 
   async function loadCards() {
     const results = await Promise.allSettled(PACKS.map(async pack => {
-      const response = await fetch(`./data/${pack}.json`);
+      const response = await fetch(`./data/${pack}.json`, { cache: 'no-store' });
       if (!response.ok) throw new Error(pack);
       return response.json();
     }));
@@ -28,6 +28,9 @@
     try {
       const cards = await loadCards();
       await window.RoomMode.open({ root, cards, esc, onExit: backToLocal });
+    } catch (error) {
+      console.error('4PLAY room open failed', error);
+      root.innerHTML = '<section class="screen"><div class="hero"><div class="logo-mark">4P</div><h1>Не удалось открыть комнату</h1><p class="lead">Закрой приложение и открой снова. Локальный режим при этом не повреждён.</p></div><div class="bottom-actions"><button class="btn btn-primary" type="button" data-room-recover>На главный экран</button></div></section>';
     } finally {
       opening = false;
     }
@@ -39,10 +42,12 @@
     const actions = root?.querySelector('.bottom-actions');
     if (!screen || homeTitle?.textContent.trim() !== '4PLAY' || !actions) return;
 
+    if (screen.dataset.roomEnhanced === 'true') return;
+    screen.dataset.roomEnhanced = 'true';
+
     const badges = root.querySelector('.badges');
     if (badges) badges.innerHTML = '<span class="badge">2–4 игрока</span><span class="badge">1×1 / 2×2</span><span class="badge">18+</span><span class="badge">PWA</span>';
 
-    if (actions.querySelector('[data-room-launch]')) return;
     const localButton = actions.querySelector('[data-action="new-game"]');
     if (!localButton) return;
     localButton.textContent = 'Один iPhone · 4 игрока';
@@ -57,6 +62,7 @@
 
   root?.addEventListener('click', event => {
     if (event.target.closest('[data-room-launch]')) openRoom();
+    if (event.target.closest('[data-room-recover]')) backToLocal();
   });
 
   const observer = new MutationObserver(enhanceHome);
