@@ -1,5 +1,5 @@
 (() => {
-  const CDN = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js';
+  const CDN = 'https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js';
   let loading = null;
 
   function inviteUrl() {
@@ -35,16 +35,19 @@
 
     const wrap = document.createElement('div');
     wrap.className = 'room-qr-card';
-    wrap.innerHTML = '<div class="room-qr-box"><canvas width="176" height="176" aria-label="QR-код комнаты"></canvas></div><div class="room-qr-copy"><strong>Сканируй камерой iPhone</strong><small>Откроется вход именно в эту комнату.</small></div>';
+    wrap.innerHTML = '<div class="room-qr-box" aria-label="QR-код комнаты"></div><div class="room-qr-copy"><strong>Сканируй камерой iPhone</strong><small>Откроется вход именно в эту комнату.</small></div>';
     shareRow.insertAdjacentElement('afterend', wrap);
 
     try {
       const QRCode = await loadQrLibrary();
-      await QRCode.toCanvas(wrap.querySelector('canvas'), url, {
+      const box = wrap.querySelector('.room-qr-box');
+      new QRCode(box, {
+        text: url,
         width: 176,
-        margin: 1,
-        errorCorrectionLevel: 'M',
-        color: { dark: '#0a0a0d', light: '#ffffff' }
+        height: 176,
+        colorDark: '#0a0a0d',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
       });
     } catch {
       wrap.remove();
