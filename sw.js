@@ -1,4 +1,4 @@
-const CACHE_NAME = '4play-shell-v10';
+const CACHE_NAME = '4play-shell-v11';
 const APP_SHELL = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const APP_SHELL = [
   './room-entry.js',
   './supabase-config.js',
   './manifest.webmanifest',
+  './icons/apple-touch-icon.png',
   './data/cards.json',
   './data/relationships.json',
   './data/spicy.json',
