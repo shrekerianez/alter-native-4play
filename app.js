@@ -18,6 +18,7 @@ const APP = {
 };
 
 const app = document.querySelector('#app');
+const PACKS = ['relationships','spicy','party','awkward','life','dark_humor'];
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
@@ -27,9 +28,21 @@ init();
 
 async function init() {
   try {
-    const response = await fetch('./data/cards.json', { cache: 'no-store' });
-    const data = await response.json();
-    APP.cards = Array.isArray(data.cards) ? data.cards : [];
+    const results = await Promise.allSettled(
+      PACKS.map(async pack => {
+        const response = await fetch(`./data/${pack}.json`, { cache: 'no-store' });
+        if (!response.ok) throw new Error(pack);
+        return response.json();
+      })
+    );
+    APP.cards = results
+      .filter(result => result.status === 'fulfilled')
+      .flatMap(result => Array.isArray(result.value.cards) ? result.value.cards : []);
+    if (!APP.cards.length) {
+      const response = await fetch('./data/cards.json');
+      const data = await response.json();
+      APP.cards = Array.isArray(data.cards) ? data.cards : [];
+    }
   } catch {
     APP.cards = [];
   }
@@ -37,7 +50,7 @@ async function init() {
 }
 
 function esc(value = '') {
-  return String(value).replace(/[&<>'\"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[char]));
+  return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 }
 
 function setScreen(name) {
@@ -128,7 +141,7 @@ function renderTeams() {
       <div class="bottom-actions">
         <button class="btn btn-primary" type="button" data-action="start-game">Начать игру</button>
         <button class="btn btn-secondary" type="button" data-action="shuffle-teams">Перемешать</button>
-        <p class="helper">8 ходов · 60 секунд на ход · 156 карточек в стартовой колоде</p>
+        <p class="helper">8 ходов · 60 секунд на ход · ${APP.cards.length} карточек в колоде</p>
       </div>
     </section>`;
 }
