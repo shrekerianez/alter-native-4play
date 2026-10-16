@@ -1,0 +1,14 @@
+{
+  "game": "Ну ты понял",
+  "version": "0.1.0",
+  "language": "ru",
+  "age_rating": "18+",
+  "cards": [
+    {"id":"card_001","category":"relationships","level":"mild","type":"taboo","prompt":"бывший","forbidden":["отношения","расстались","прошлое"]},
+    {"id":"card_002","category":"party","level":"mild","type":"taboo","prompt":"похмелье","forbidden":["алкоголь","утро","голова"]},
+    {"id":"card_003","category":"spicy","level":"adult","type":"taboo","prompt":"секс по дружбе","forbidden":["секс","друзья","отношения"]},
+    {"id":"card_004","category":"awkward","level":"mild","type":"taboo","prompt":"случайно отправить сообщение не тому","forbidden":["сообщение","ошибка","получатель"]},
+    {"id":"card_005","category":"life","level":"mild","type":"taboo","prompt":"ипотека","forbidden":["банк","квартира","кредит"]},
+    {"id":"card_006","category":"party","level":"mild","type":"phrase","prompt":"Сказать «я уже выехал», всё ещё лёжа на диване","forbidden":[]}
+  ]
+}
