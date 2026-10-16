@@ -38,10 +38,15 @@
     const homeTitle = root?.querySelector('h1');
     const actions = root?.querySelector('.bottom-actions');
     if (!screen || homeTitle?.textContent.trim() !== '4PLAY' || !actions) return;
+
+    const badges = root.querySelector('.badges');
+    if (badges) badges.innerHTML = '<span class="badge">2–4 игрока</span><span class="badge">1×1 / 2×2</span><span class="badge">18+</span><span class="badge">PWA</span>';
+
     if (actions.querySelector('[data-room-launch]')) return;
     const localButton = actions.querySelector('[data-action="new-game"]');
     if (!localButton) return;
-    localButton.textContent = 'Один iPhone';
+    localButton.textContent = 'Один iPhone · 4 игрока';
+
     const roomButton = document.createElement('button');
     roomButton.className = 'btn btn-secondary';
     roomButton.type = 'button';
