@@ -1,4 +1,4 @@
-const CACHE_NAME = '4play-shell-v8';
+const CACHE_NAME = '4play-shell-v9';
 const APP_SHELL = [
   './',
   './index.html',
