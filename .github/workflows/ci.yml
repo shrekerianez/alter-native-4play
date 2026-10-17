@@ -25,6 +25,7 @@ jobs:
         run: |
           node --check app.js
           node --check room-mode.js
+          node --check room-tv-client.js
           node --check room-qr.js
           node --check room-entry.js
           node --check tv-mode.js
