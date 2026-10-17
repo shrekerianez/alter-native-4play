@@ -4,11 +4,12 @@
   const PLAYER_ID_KEY = '4play.playerId';
   const EMOJIS = ['😎','🤠','🥳','😈','🤡','🦊','🐼','🦄'];
   const root = document.querySelector('#app');
-  const profilesById = new Map();
+
   const profilesByName = new Map();
   let scannerStream = null;
   let scannerFrame = 0;
   let jsQrLoading = null;
+  let previousMarkup = '';
   let profileClient = null;
   let profileChannel = null;
   let profileRoom = '';
@@ -18,21 +19,17 @@
     return String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   }
 
-  function params() {
+  function searchParams() {
     return new URL(location.href).searchParams;
   }
 
   function currentRoom() {
-    const p = params();
+    const p = searchParams();
     return cleanCode(p.get('tv') || p.get('room') || '');
   }
 
   function isTvScreen() {
-    return params().has('tv');
-  }
-
-  function isTvClient() {
-    return params().get('tvhost') === '1';
+    return searchParams().has('tv');
   }
 
   function getPlayerId() {
@@ -55,7 +52,7 @@
 
   function saveProfile(profile) {
     localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
-    decorateProfilePicker();
+    refreshProfilePicker();
     void trackCurrentProfile(true);
   }
 
@@ -68,42 +65,35 @@
     const preview = profile.type === 'photo'
       ? `<img src="${esc(profile.value)}" alt="Твоё фото">`
       : `<span>${esc(profile.value)}</span>`;
+
     return `<div class="player-profile-card" data-player-profile-card>
-      <div class="player-profile-head"><div class="player-profile-preview">${preview}</div><div><strong>Твоя аватарка</strong><small>Будет видна на телевизоре и у игроков.</small></div></div>
-      <div class="player-profile-emojis">${EMOJIS.map(emoji => `<button type="button" data-profile-emoji="${emoji}" class="${profile.type === 'emoji' && profile.value === emoji ? 'selected' : ''}" aria-label="Аватар ${emoji}">${emoji}</button>`).join('')}</div>
-      <label class="player-photo-button"><input type="file" accept="image/*" data-profile-photo><span>📷</span><strong>Выбрать фото</strong></label>
+      <div class="player-profile-head">
+        <div class="player-profile-preview">${preview}</div>
+        <div><strong>Твоя аватарка</strong><small>Будет видна на телевизоре и у игроков.</small></div>
+      </div>
+      <div class="player-profile-emojis">
+        ${EMOJIS.map(emoji => `<button type="button" data-profile-emoji="${emoji}" class="${profile.type === 'emoji' && profile.value === emoji ? 'selected' : ''}" aria-label="Аватар ${emoji}">${emoji}</button>`).join('')}
+      </div>
+      <label class="player-photo-button">
+        <input type="file" accept="image/*" data-profile-photo>
+        <span>📷</span><strong>Выбрать фото</strong>
+      </label>
     </div>`;
   }
 
-  function decorateProfilePicker() {
+  function refreshProfilePicker() {
     const card = root?.querySelector('[data-player-profile-card]');
     if (!card) return;
-    const next = document.createElement('div');
-    next.innerHTML = profilePickerMarkup();
-    card.replaceWith(next.firstElementChild);
-  }
-
-  function enhanceTvClientJoin() {
-    const form = root?.querySelector('#tvClientJoinForm');
-    if (!form || form.dataset.profileEnhanced === '1') return;
-    form.dataset.profileEnhanced = '1';
-    const actions = form.querySelector('.bottom-actions');
-    actions?.insertAdjacentHTML('beforebegin', profilePickerMarkup());
-    const codeField = form.querySelector('input[name="code"]');
-    if (codeField) codeField.readOnly = false;
-    const scan = document.createElement('button');
-    scan.type = 'button';
-    scan.className = 'btn btn-primary room-scan-button';
-    scan.dataset.profileScan = '1';
-    scan.innerHTML = '<span class="room-scan-icon">⌁</span> Сканировать другой QR';
-    form.insertAdjacentElement('afterbegin', scan);
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = profilePickerMarkup();
+    card.replaceWith(wrapper.firstElementChild);
   }
 
   function enhanceHome() {
-    const screen = root?.querySelector('.screen');
     const title = root?.querySelector('h1');
     const actions = root?.querySelector('.bottom-actions');
-    if (!screen || title?.textContent.trim() !== '4PLAY' || !actions || actions.querySelector('[data-tv-connect-launch]')) return;
+    if (title?.textContent.trim() !== '4PLAY' || !actions || actions.querySelector('[data-tv-connect-launch]')) return;
+
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'btn btn-secondary';
@@ -112,9 +102,38 @@
     actions.appendChild(button);
   }
 
+  function enhanceTvClientJoin() {
+    const form = root?.querySelector('#tvClientJoinForm');
+    if (!form || form.dataset.profileEnhanced === '1') return;
+    form.dataset.profileEnhanced = '1';
+
+    const scan = document.createElement('button');
+    scan.type = 'button';
+    scan.className = 'btn btn-primary room-scan-button';
+    scan.dataset.profileScan = '1';
+    scan.innerHTML = '<span class="room-scan-icon">⌁</span> Сканировать QR';
+    form.insertAdjacentElement('afterbegin', scan);
+
+    const code = form.querySelector('input[name="code"]');
+    if (code) code.readOnly = false;
+
+    const actions = form.querySelector('.bottom-actions');
+    actions?.insertAdjacentHTML('beforebegin', profilePickerMarkup());
+  }
+
   function renderTvConnect() {
-    root.innerHTML = `<section class="screen room-screen"><div class="topbar"><button class="icon-btn" type="button" data-profile-home aria-label="Назад">‹</button><div class="brand-mini">AlterNative · 4PLAY</div><div></div></div><h2 class="section-title">Подключиться к TV</h2><p class="section-copy">Самый быстрый путь — отсканировать QR на телевизоре. Код можно ввести вручную.</p><button class="btn btn-primary room-scan-button" type="button" data-profile-scan><span class="room-scan-icon">⌁</span> Сканировать QR</button><div class="room-or"><span>или</span></div><form id="profileTvCodeForm" class="form-list"><label class="field"><span>Код комнаты</span><input name="code" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="7KQ2A"></label><div class="bottom-actions"><button class="btn btn-secondary" type="submit">Продолжить</button><p class="error" data-profile-code-error></p></div></form></section>`;
-    setTimeout(() => root.querySelector('input[name="code"]')?.focus({preventScroll:true}), 60);
+    root.innerHTML = `<section class="screen room-screen">
+      <div class="topbar"><button class="icon-btn" type="button" data-profile-home aria-label="Назад">‹</button><div class="brand-mini">AlterNative · 4PLAY</div><div></div></div>
+      <h2 class="section-title">Подключиться к TV</h2>
+      <p class="section-copy">Сканируй QR на телевизоре или введи код комнаты вручную.</p>
+      <button class="btn btn-primary room-scan-button" type="button" data-profile-scan><span class="room-scan-icon">⌁</span> Сканировать QR</button>
+      <div class="room-or"><span>или</span></div>
+      <form id="profileTvCodeForm" class="form-list">
+        <label class="field"><span>Код комнаты</span><input name="code" maxlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="7KQ2A"></label>
+        <div class="bottom-actions"><button class="btn btn-secondary" type="submit">Продолжить</button><p class="error" data-profile-code-error></p></div>
+      </form>
+    </section>`;
+    setTimeout(() => root.querySelector('input[name="code"]')?.focus({preventScroll:true}), 50);
   }
 
   function goHome() {
@@ -162,22 +181,25 @@
   }
 
   async function startScanner() {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      renderScannerError('Камера недоступна в этом режиме. Введи код комнаты вручную.');
-      return;
-    }
-    const previous = root.innerHTML;
-    root.innerHTML = `<section class="screen room-screen qr-scan-screen"><div class="topbar"><button class="icon-btn" type="button" data-profile-scan-cancel aria-label="Закрыть">‹</button><div class="brand-mini">Сканирование QR</div><div></div></div><div class="qr-camera-wrap"><video data-qr-video autoplay muted playsinline></video><div class="qr-camera-frame"><i></i><i></i><i></i><i></i></div></div><p class="section-copy qr-scan-help">Наведи iPhone на QR-код на телевизоре.</p><p class="error" data-qr-error></p></section>`;
-    root.dataset.scanPrevious = previous;
+    if (!navigator.mediaDevices?.getUserMedia) return showScannerMessage('Камера недоступна. Введи код комнаты вручную.');
+
+    previousMarkup = root.innerHTML;
+    root.innerHTML = `<section class="screen room-screen qr-scan-screen">
+      <div class="topbar"><button class="icon-btn" type="button" data-profile-scan-cancel aria-label="Закрыть">‹</button><div class="brand-mini">Сканирование QR</div><div></div></div>
+      <div class="qr-camera-wrap"><video data-qr-video autoplay muted playsinline></video><div class="qr-camera-frame"><i></i><i></i><i></i><i></i></div></div>
+      <p class="section-copy qr-scan-help">Наведи iPhone на QR-код на телевизоре.</p>
+      <p class="error" data-qr-error></p>
+    </section>`;
+
     try {
       scannerStream = await navigator.mediaDevices.getUserMedia({ audio:false, video:{ facingMode:{ ideal:'environment' } } });
       const video = root.querySelector('[data-qr-video]');
       video.srcObject = scannerStream;
       await video.play();
-      scanLoop(video);
+      void scanLoop(video);
     } catch (error) {
       console.error('4PLAY camera failed', error);
-      renderScannerError('Не удалось открыть камеру. Разреши доступ к камере или введи код вручную.');
+      showScannerMessage('Не удалось открыть камеру. Разреши доступ к камере или введи код вручную.');
     }
   }
 
@@ -188,6 +210,7 @@
     try {
       if ('BarcodeDetector' in window) detector = new BarcodeDetector({ formats:['qr_code'] });
     } catch {}
+
     let jsQR = null;
     if (!detector) {
       try { jsQR = await loadJsQr(); } catch {}
@@ -195,31 +218,31 @@
 
     const tick = async () => {
       if (!scannerStream || !video.isConnected) return;
+      let raw = '';
       try {
-        let raw = '';
         if (detector) {
-          const results = await detector.detect(video);
-          raw = results?.[0]?.rawValue || '';
+          raw = (await detector.detect(video))?.[0]?.rawValue || '';
         } else if (jsQR && video.videoWidth && video.videoHeight) {
-          const maxWidth = 640;
-          const scale = Math.min(1, maxWidth / video.videoWidth);
+          const scale = Math.min(1, 640 / video.videoWidth);
           canvas.width = Math.round(video.videoWidth * scale);
           canvas.height = Math.round(video.videoHeight * scale);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
           raw = jsQR(image.data, image.width, image.height, { inversionAttempts:'dontInvert' })?.data || '';
         }
-        const code = roomFromQr(raw);
-        if (code) return void goToTvRoom(code);
       } catch {}
+
+      const code = roomFromQr(raw);
+      if (code) return void goToTvRoom(code);
       scannerFrame = requestAnimationFrame(tick);
     };
+
     tick();
   }
 
-  function renderScannerError(message) {
-    const node = root?.querySelector('[data-qr-error]');
-    if (node) node.textContent = message;
+  function showScannerMessage(message) {
+    const error = root?.querySelector('[data-qr-error]');
+    if (error) error.textContent = message;
     else renderTvConnect();
   }
 
@@ -228,10 +251,10 @@
     scannerFrame = 0;
     scannerStream?.getTracks().forEach(track => track.stop());
     scannerStream = null;
-    if (restore && root?.dataset.scanPrevious) {
-      const previous = root.dataset.scanPrevious;
-      delete root.dataset.scanPrevious;
-      root.innerHTML = previous;
+
+    if (restore && previousMarkup) {
+      root.innerHTML = previousMarkup;
+      previousMarkup = '';
       enhanceTvClientJoin();
     }
   }
@@ -253,15 +276,16 @@
       image.onerror = reject;
       image.src = dataUrl;
     });
+
     const size = 128;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
-    const sourceSize = Math.min(image.naturalWidth, image.naturalHeight);
-    const sx = Math.max(0, (image.naturalWidth - sourceSize) / 2);
-    const sy = Math.max(0, (image.naturalHeight - sourceSize) / 2);
-    ctx.drawImage(image, sx, sy, sourceSize, sourceSize, 0, 0, size, size);
+    const crop = Math.min(image.naturalWidth, image.naturalHeight);
+    const sx = Math.max(0, (image.naturalWidth - crop) / 2);
+    const sy = Math.max(0, (image.naturalHeight - crop) / 2);
+    ctx.drawImage(image, sx, sy, crop, crop, 0, 0, size, size);
     return canvas.toDataURL('image/jpeg', 0.68);
   }
 
@@ -274,26 +298,24 @@
     const room = currentRoom();
     const cfg = supabaseConfig();
     if (room.length !== 5 || !/^https:\/\/.+\.supabase\.co$/i.test(cfg.url) || cfg.key.length < 20) return;
+
     if (profileChannel && profileRoom === room) {
       if (!isTvScreen()) void trackCurrentProfile();
       return;
     }
+
     try {
       if (profileClient && profileChannel) await profileClient.removeChannel(profileChannel);
-    } catch {}
-    try {
       const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
       profileClient = createClient(cfg.url, cfg.key, { auth:{ persistSession:false } });
-      const key = isTvScreen() ? `tv-profile-${Date.now()}` : `profile-${getPlayerId()}`;
       profileRoom = room;
+      const key = isTvScreen() ? `tv-profile-${Date.now()}` : `profile-${getPlayerId()}`;
       profileChannel = profileClient.channel(`4play-profile:${room}`, { config:{ presence:{ key } } });
+
       profileChannel.on('presence', { event:'sync' }, () => {
-        profilesById.clear();
         profilesByName.clear();
         Object.values(profileChannel.presenceState()).flat().forEach(item => {
-          if (!item?.id || !item?.profile) return;
-          profilesById.set(String(item.id), item.profile);
-          if (item.name) profilesByName.set(String(item.name), item.profile);
+          if (item?.name && item?.profile) profilesByName.set(String(item.name), item.profile);
         });
         decoratePlayers();
       }).subscribe(async status => {
@@ -306,8 +328,9 @@
 
   async function trackCurrentProfile(force = false) {
     if (!profileChannel || isTvScreen()) return;
-    const name = String(localStorage.getItem(LAST_NAME_KEY) || '').trim().slice(0,20);
+    const name = String(localStorage.getItem(LAST_NAME_KEY) || '').trim().slice(0, 20);
     if (!name) return;
+
     const payload = { id:getPlayerId(), name, profile:loadProfile(), updatedAt:Date.now() };
     const signature = JSON.stringify([payload.id, payload.name, payload.profile]);
     if (!force && signature === lastTracked) return;
@@ -319,6 +342,7 @@
     if (!node || !profile) return;
     node.classList.add('player-avatar-profiled');
     node.textContent = '';
+
     if (profile.type === 'photo' && /^data:image\//.test(profile.value || '')) {
       const img = document.createElement('img');
       img.src = profile.value;
@@ -335,6 +359,7 @@
       const profile = profilesByName.get(name);
       if (profile) applyAvatar(row.querySelector('span'), profile, name?.slice(0,1));
     });
+
     document.querySelectorAll('.player-row').forEach(row => {
       const strong = row.querySelector('strong');
       if (!strong) return;
@@ -350,318 +375,18 @@
       saveProfile({ type:'emoji', value:emoji.dataset.profileEmoji });
       return;
     }
-    if (event.target.closest('[data-tv-connect-launch]')) {
-      renderTvConnect();
-      return;
-    }
-    if (event.target.closest('[data-profile-scan], [data-profile-scan="1"], [data-profile-scan], [data-profile-scan]') || event.target.closest('[data-profile-scan]')) {
-      void startScanner();
-      return;
-    }
-    if (event.target.closest('[data-profile-scan-cancel]')) {
-      void stopScanner(true);
-      return;
-    }
-    if (event.target.closest('[data-profile-home]')) {
-      goHome();
-      return;
-    }
-    if (event.target.closest('[data-profile-scan]') || event.target.closest('[data-profile-scan="1"]')) {
-      void startScanner();
-      return;
-    }
-    if (event.target.closest('[data-profile-scan-button], [data-profile-scan]')) {
-      void startScanner();
-      return;
-    }
-    if (event.target.closest('[data-profile-scan]')) void startScanner();
-    if (event.target.closest('[data-profile-scan-cancel]')) void stopScanner(true);
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
-    if (event.target.closest('[data-profile-scan]')) return;
+
+    if (event.target.closest('[data-tv-connect-launch]')) return renderTvConnect();
+    if (event.target.closest('[data-profile-scan]')) return void startScanner();
+    if (event.target.closest('[data-profile-scan-cancel]')) return void stopScanner(true);
+    if (event.target.closest('[data-profile-home]')) return goHome();
   });
 
   root?.addEventListener('change', async event => {
     const input = event.target.closest('[data-profile-photo]');
     if (!input?.files?.[0]) return;
     try {
-      const value = await compressPhoto(input.files[0]);
-      saveProfile({ type:'photo', value });
+      saveProfile({ type:'photo', value:await compressPhoto(input.files[0]) });
     } catch (error) {
       console.error('4PLAY photo resize failed', error);
     }
