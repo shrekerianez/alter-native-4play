@@ -114,9 +114,6 @@
     scan.innerHTML = '<span class="room-scan-icon">⌁</span> Сканировать QR';
     form.insertAdjacentElement('afterbegin', scan);
 
-    const code = form.querySelector('input[name="code"]');
-    if (code) code.readOnly = false;
-
     const actions = form.querySelector('.bottom-actions');
     actions?.insertAdjacentHTML('beforebegin', profilePickerMarkup());
   }
@@ -340,6 +337,9 @@
 
   function applyAvatar(node, profile, fallback = '?') {
     if (!node || !profile) return;
+    const signature = `${profile.type}:${profile.value || ''}`;
+    if (node.dataset.avatarSignature === signature) return;
+    node.dataset.avatarSignature = signature;
     node.classList.add('player-avatar-profiled');
     node.textContent = '';
 
@@ -406,7 +406,7 @@
     decoratePlayers();
     void ensureProfileChannel();
   });
-  if (root) observer.observe(root, { childList:true, subtree:true });
+  if (root) observer.observe(root, { childList:true });
 
   addEventListener('pagehide', () => {
     void stopScanner();
