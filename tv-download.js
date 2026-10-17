@@ -2,7 +2,7 @@
   const TV_APP = {
     version: '0.1.0-dev',
     size: '2,6 МБ',
-    url: 'https://github.com/shrekerianez/alter-native-4play-tv/releases/download/v0.1.0-dev/4PLAY-TV-v0.1.0-dev-debug.apk'
+    url: 'https://raw.githubusercontent.com/shrekerianez/alter-native-4play-tv/main/downloads/4PLAY-TV-v0.1.0-dev-debug.apk'
   };
 
   function mountTvDownloadCard() {
