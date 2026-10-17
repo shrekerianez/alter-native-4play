@@ -1,4 +1,4 @@
-const CACHE_NAME = '4play-shell-v15';
+const CACHE_NAME = '4play-shell-v16';
 const APP_SHELL = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const APP_SHELL = [
   './room-final.css',
   './player-profile.css',
   './tv.css',
+  './tv-download.css',
   './app.js',
   './room-mode.js',
   './room-tv-client.js',
@@ -16,6 +17,7 @@ const APP_SHELL = [
   './room-entry.js',
   './tv-mode.js',
   './player-profile.js',
+  './tv-download.js',
   './supabase-config.js',
   './manifest.webmanifest',
   './icons/apple-touch-icon.png',
