@@ -19,15 +19,20 @@
   function backToLocal() {
     const url = new URL(location.href);
     url.searchParams.delete('room');
+    url.searchParams.delete('tvhost');
     location.href = url.toString();
   }
 
   async function openRoom() {
-    if (opening || !window.RoomMode) return;
+    if (opening) return;
+    const params = new URL(location.href).searchParams;
+    const tvHosted = params.get('tvhost') === '1';
+    const client = tvHosted ? window.TVRoomClient : window.RoomMode;
+    if (!client) return;
     opening = true;
     try {
       const cards = await loadCards();
-      await window.RoomMode.open({ root, cards, esc, onExit: backToLocal });
+      await client.open({ root, cards, esc, onExit: backToLocal });
     } catch (error) {
       console.error('4PLAY room open failed', error);
       root.innerHTML = '<section class="screen"><div class="hero"><div class="logo-mark">4P</div><h1>Не удалось открыть комнату</h1><p class="lead">Закрой приложение и открой снова. Локальный режим при этом не повреждён.</p></div><div class="bottom-actions"><button class="btn btn-primary" type="button" data-room-recover>На главный экран</button></div></section>';
