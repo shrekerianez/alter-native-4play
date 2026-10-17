@@ -29,6 +29,7 @@ jobs:
           node --check room-qr.js
           node --check room-entry.js
           node --check tv-mode.js
+          node --check player-profile.js
           node --check sw.js
           node --check supabase-config.js
 
