@@ -67,3 +67,7 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 @media(max-width:860px){.logic-lobby{grid-template-columns:1fr}.logic-qr{width:205px;height:205px}.logic-header{flex-wrap:wrap}.logic-tiles{gap:10px}.logic-tile{width:clamp(85px,20vw,180px);font-size:clamp(45px,8vw,105px)}.logic-plus{font-size:35px}.logic-tv{overflow:auto}.logic-stage{min-height:300px}}
 @media(max-height:650px) and (min-width:861px){.logic-tv{padding:17px 34px}.logic-arena{gap:5px}.logic-stage h1{font-size:clamp(25px,3vw,45px)}.logic-tiles{margin:7px}.logic-tile{width:clamp(105px,12vw,195px);font-size:clamp(55px,7vw,115px)}.logic-clock{height:76px;width:76px;font-size:40px}}
 @media(prefers-reduced-motion:no-preference){.logic-tile{animation:logic-pop .28s backwards}.logic-tile:nth-child(2){animation-delay:.08s}.logic-tile:nth-child(3){animation-delay:.16s}.logic-tile:nth-child(4){animation-delay:.24s}@keyframes logic-pop{from{transform:translateY(16px) scale(.94);opacity:.2}to{transform:none;opacity:1}}}
+
+/* Entry in the existing native TV app's catalog */
+.tv-host-actions .tv-logic-launch{display:inline-flex;align-items:center;justify-content:center;padding:16px 28px;min-height:70px;border-radius:22px;background:linear-gradient(125deg,#9351ee,#f24883);font-size:clamp(17px,1.5vw,24px);font-weight:900;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.2)}
+.tv-host-actions .tv-logic-launch:focus-visible{outline:4px solid white;outline-offset:5px;transform:scale(1.03)}
