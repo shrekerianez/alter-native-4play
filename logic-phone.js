@@ -63,6 +63,8 @@
     if(!state||state.gameId!=='logic'||state.code!==C.code)return;
     if(C.state&&Number(state.version)<Number(C.state.version))return;
     if(C.state&&state.index!==C.state.index)C.buzzedIndex=null;
+    // If another player was judged incorrect, previously losing buzzers may try again.
+    else if(C.state?.buzz&&state.phase==='question'&&!state.buzz)C.buzzedIndex=null;
     C.state=state;render();
   }
   async function buzz(){
