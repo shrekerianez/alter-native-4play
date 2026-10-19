@@ -71,3 +71,11 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 /* Entry in the existing native TV app's catalog */
 .tv-host-actions .tv-logic-launch{display:inline-flex;align-items:center;justify-content:center;padding:16px 28px;min-height:70px;border-radius:22px;background:linear-gradient(125deg,#9351ee,#f24883);font-size:clamp(17px,1.5vw,24px);font-weight:900;color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.2)}
 .tv-host-actions .tv-logic-launch:focus-visible{outline:4px solid white;outline-offset:5px;transform:scale(1.03)}
+
+/* Smartphone typed answer: large touch keyboard input, clear one-tap submission. */
+.logic-phone .logic-answer-form{margin-top:auto;margin-bottom:auto;display:flex;flex-direction:column;gap:17px;width:100%;padding:24px 20px;border:1px solid rgba(255,255,255,.18);border-radius:30px;background:rgba(255,255,255,.08)}
+.logic-phone .logic-answer-form input{min-height:72px;font-size:clamp(21px,6vw,28px);border:2px solid rgba(204,172,255,.6);background:rgba(0,0,0,.32)}
+.logic-phone .logic-answer-form input:focus-visible{outline:3px solid #d7b0ff;outline-offset:2px}
+.logic-phone .logic-answer-form button.logic-send{min-height:72px;color:#fff;background:linear-gradient(125deg,#9259fa,#f75388);font-size:22px}
+.logic-phone .logic-answer-form p{font-size:14px;line-height:1.45;color:#beb1d0}
+.logic-phone .logic-answer-form button:disabled{opacity:.5}
