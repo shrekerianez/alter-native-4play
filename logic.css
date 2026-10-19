@@ -1,0 +1,69 @@
+/* 4PLAY Logic. Self-contained TV and mobile presentation, no dependency on TNT assets. */
+html.logic-tv-mode,body.logic-tv-mode{background:#08070e!important;overflow:hidden}
+body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-height:100vh}
+.logic-tv{--logic-glass:rgba(255,255,255,.075);--logic-stroke:rgba(255,255,255,.15);min-height:100vh;min-height:100dvh;padding:clamp(22px,3vw,54px);display:flex;flex-direction:column;color:#fff;background:radial-gradient(ellipse at 12% 8%,rgba(136,65,255,.27),transparent 43%),radial-gradient(ellipse at 88% 82%,rgba(255,55,95,.16),transparent 46%),linear-gradient(145deg,#0d0b16,#090914 65%,#101024);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif}
+.logic-header{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:52px}
+.logic-brand{font-weight:950;letter-spacing:-.055em;font-size:clamp(26px,2.75vw,48px)}
+.logic-brand span{color:#e882ff}.logic-label{font-weight:850;color:#c8c4d7;letter-spacing:.06em;text-transform:uppercase;font-size:clamp(13px,1.2vw,20px)}
+.logic-tv button,.logic-tv a.logic-button{min-height:50px;padding:12px 25px;color:#fff;background:rgba(255,255,255,.13);border:1px solid var(--logic-stroke);border-radius:17px;font-size:clamp(15px,1.3vw,20px);font-weight:850;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:10px;cursor:pointer}
+.logic-tv button.primary,.logic-tv a.logic-button.primary{background:linear-gradient(120deg,#ae57f7,#fc5277);border:0}
+.logic-tv button:disabled{opacity:.42;cursor:not-allowed}
+.logic-tv button:focus-visible,.logic-tv a:focus-visible{outline:4px solid #fff;outline-offset:5px;transform:scale(1.025)}
+.logic-tv button:active{transform:scale(.97)}
+.logic-intro{display:flex;flex:1;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:23px}
+.logic-intro h1{font-size:clamp(48px,7vw,118px);margin:0;line-height:1;letter-spacing:-.065em}
+.logic-intro p{max-width:900px;font-size:clamp(18px,2vw,32px);color:#c6bfd2;line-height:1.4;margin:0}
+.logic-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:center}
+.logic-panel{border:1px solid var(--logic-stroke);background:var(--logic-glass);border-radius:clamp(24px,3vw,48px);padding:clamp(20px,2.6vw,45px)}
+.logic-lobby{flex:1;display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.7fr);gap:3vw;align-items:center;max-width:1700px;margin:0 auto;width:100%}
+.logic-code{font-size:clamp(65px,7.7vw,140px);font-weight:950;letter-spacing:.12em;line-height:1.1;margin:12px 0}
+.logic-lobby .logic-panel{text-align:center}
+.logic-players{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:26px;text-align:left}
+.logic-team{background:rgba(255,255,255,.075);border-radius:22px;padding:20px;min-height:130px}
+.logic-team h3{font-size:clamp(19px,1.5vw,25px);margin:0 0 13px}
+.logic-team:first-child h3{color:#ff96b5}.logic-team:last-child h3{color:#b3a0ff}
+.logic-player-tag{display:inline-flex;align-items:center;margin:4px;padding:9px 12px;border:1px solid rgba(255,255,255,.12);border-radius:22px;font-size:clamp(14px,1.2vw,19px);background:rgba(0,0,0,.2)}
+.logic-qr{width:min(24vw,260px);height:min(24vw,260px);min-width:175px;min-height:175px;background:#fff;border-radius:18px;padding:12px;margin:10px auto 18px;display:grid;place-items:center;color:#161220}
+.logic-qr img,.logic-qr canvas{max-width:100%;max-height:100%;height:auto!important}
+.logic-hint{color:#b6afc6;font-size:clamp(17px,1.5vw,26px);line-height:1.35}
+.logic-arena{display:flex;flex-direction:column;flex:1;gap:clamp(12px,1.5vw,25px);min-height:0}
+.logic-topline{display:grid;grid-template-columns:1fr auto 1fr;gap:15px;align-items:center}
+.logic-score{text-align:left;display:grid;gap:3px}.logic-score:last-child{text-align:right}
+.logic-score strong{font-size:clamp(35px,4vw,70px);line-height:1}.logic-score small{font-size:clamp(14px,1.4vw,23px);font-weight:800;color:#c8c2d2}
+.logic-clock{background:var(--logic-glass);border:2px solid var(--logic-stroke);border-radius:50%;width:clamp(85px,7.5vw,132px);height:clamp(85px,7.5vw,132px);display:grid;place-items:center;font-size:clamp(34px,4vw,68px);font-weight:950;font-variant-numeric:tabular-nums}
+.logic-clock.urgent{color:#ff6d7c;border-color:#ff647e}
+.logic-stage{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;text-align:center}
+.logic-stage h1{font-size:clamp(30px,3.6vw,64px);letter-spacing:-.04em;line-height:1.12;margin:0}
+.logic-tiles{display:flex;justify-content:center;gap:clamp(12px,2vw,35px);align-items:center;flex-wrap:wrap;margin:clamp(12px,2vw,35px) auto;width:100%}
+.logic-tile{width:clamp(150px,17vw,290px);aspect-ratio:1/1;border-radius:clamp(25px,2.5vw,48px);display:grid;place-items:center;background:linear-gradient(140deg,rgba(255,255,255,.17),rgba(255,255,255,.04));border:2px solid rgba(255,255,255,.19);box-shadow:0 18px 65px rgba(0,0,0,.28),inset 0 2px 0 rgba(255,255,255,.13);font-size:clamp(76px,10vw,165px);line-height:1;user-select:none;position:relative}
+.logic-tile:nth-child(2n){background:linear-gradient(140deg,rgba(198,116,255,.17),rgba(255,255,255,.06))}
+.logic-tile small{position:absolute;top:12px;left:18px;font-size:clamp(12px,1vw,18px);color:rgba(255,255,255,.53);font-weight:850}
+.logic-plus{font-size:clamp(35px,3.7vw,70px);font-weight:950;color:#ff9bb9}
+.logic-ribbon{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;align-items:center;min-height:55px}
+.logic-buzz{font-size:clamp(24px,2.3vw,43px);font-weight:900;color:#ffca88}
+.logic-answer{font-size:clamp(42px,5vw,92px);letter-spacing:-.04em;font-weight:950;color:#bdfade;line-height:1.05}
+.logic-explain{max-width:1050px;margin:5px auto;color:#cec7d8;font-size:clamp(17px,1.5vw,26px);line-height:1.35}
+.logic-final{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center}
+.logic-final h1{font-size:clamp(48px,6vw,100px);letter-spacing:-.06em;margin:0}
+.logic-final .logic-code{font-size:clamp(56px,6vw,115px)}
+.logic-error{color:#ff8b99;font-size:20px;text-align:center;padding:20px}
+.logic-phone{min-height:calc(100dvh - 32px);display:flex;flex-direction:column;gap:20px;width:min(100%,460px);margin:0 auto;padding:14px 0;color:#fff}
+.logic-phone .logic-phone-head{display:flex;justify-content:space-between;align-items:center;gap:12px;color:#cbc2dc;font-size:14px;font-weight:800}
+.logic-phone h1{font-size:clamp(32px,10vw,50px);line-height:1.05;letter-spacing:-.045em;margin:4px 0}
+.logic-phone p{font-size:17px;color:#c8bdd4;line-height:1.5;margin:0}
+.logic-phone input{border:1px solid rgba(255,255,255,.19);background:rgba(255,255,255,.09);border-radius:20px;padding:18px;color:#fff;min-height:60px;width:100%;font:inherit;font-size:20px;outline:none}
+.logic-phone input:focus{border-color:#c98dff}
+.logic-phone button{border:0;border-radius:22px;padding:20px;min-height:62px;width:100%;font:inherit;font-weight:900;font-size:20px;cursor:pointer;color:#0c0912;background:#fff}
+.logic-phone button:disabled{opacity:.45}
+.logic-phone button.logic-buzzer{flex:1;min-height:190px;border-radius:40px;color:#fff;background:linear-gradient(145deg,#f44d7d,#8948ef);font-size:clamp(34px,11vw,60px);box-shadow:0 20px 66px rgba(193,54,153,.25);letter-spacing:-.06em}
+.logic-phone button.logic-buzzer:active{transform:scale(.97)}
+.logic-phone .logic-card{border:1px solid rgba(255,255,255,.15);border-radius:30px;background:rgba(255,255,255,.065);padding:22px;display:grid;gap:12px}
+.logic-phone .logic-team-name{font-weight:900;color:#eab8ff;font-size:18px}
+.logic-phone .logic-status{font-size:22px;font-weight:850;text-align:center;color:#fff;margin:auto 0}
+.logic-phone .logic-link{font-size:15px;text-align:center;color:#b4a9c5}
+.logic-phone .logic-scoreboard{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.logic-phone .logic-scoreboard>div{padding:18px 12px;border-radius:22px;background:rgba(255,255,255,.065);text-align:center}
+.logic-phone .logic-scoreboard strong{font-size:37px;display:block}
+@media(max-width:860px){.logic-lobby{grid-template-columns:1fr}.logic-qr{width:205px;height:205px}.logic-header{flex-wrap:wrap}.logic-tiles{gap:10px}.logic-tile{width:clamp(85px,20vw,180px);font-size:clamp(45px,8vw,105px)}.logic-plus{font-size:35px}.logic-tv{overflow:auto}.logic-stage{min-height:300px}}
+@media(max-height:650px) and (min-width:861px){.logic-tv{padding:17px 34px}.logic-arena{gap:5px}.logic-stage h1{font-size:clamp(25px,3vw,45px)}.logic-tiles{margin:7px}.logic-tile{width:clamp(105px,12vw,195px);font-size:clamp(55px,7vw,115px)}.logic-clock{height:76px;width:76px;font-size:40px}}
+@media(prefers-reduced-motion:no-preference){.logic-tile{animation:logic-pop .28s backwards}.logic-tile:nth-child(2){animation-delay:.08s}.logic-tile:nth-child(3){animation-delay:.16s}.logic-tile:nth-child(4){animation-delay:.24s}@keyframes logic-pop{from{transform:translateY(16px) scale(.94);opacity:.2}to{transform:none;opacity:1}}}
