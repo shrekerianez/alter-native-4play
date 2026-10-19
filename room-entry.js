@@ -41,6 +41,20 @@
     }
   }
 
+  function openLogicEntry() {
+    root.innerHTML = `
+      <section class="screen">
+        <div class="topbar"><button type="button" class="icon-btn" data-logic-home aria-label="Назад">‹</button><div class="brand-mini">AlterNative · 4PLAY</div><div></div></div>
+        <div class="hero"><div class="logo-mark">🧠</div><h1 style="font-size:48px">4PLAY Логика</h1><p class="lead">Введи код с телевизора, чтобы превратить телефон в пульт игрока.</p></div>
+        <form id="logicCodeForm" class="form-list">
+          <label class="field"><span>Код комнаты</span><input name="code" maxlength="5" minlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="7KQ2A" required></label>
+          <button class="btn btn-primary" type="submit">Присоединиться</button>
+          <p id="logicCodeError" class="error" role="alert"></p>
+        </form>
+      </section>`;
+    root.querySelector('[name="code"]')?.focus({preventScroll:true});
+  }
+
   function enhanceHome() {
     const screen = root?.querySelector('.screen');
     const homeTitle = root?.querySelector('h1');
@@ -63,11 +77,34 @@
     roomButton.dataset.roomLaunch = 'true';
     roomButton.textContent = 'Комната · 2–4 iPhone';
     localButton.insertAdjacentElement('afterend', roomButton);
+
+    const logicButton = document.createElement('button');
+    logicButton.className = 'btn btn-secondary';
+    logicButton.type = 'button';
+    logicButton.dataset.logicLaunch = 'true';
+    logicButton.textContent = '🧠 Логика · Войти по коду TV';
+    roomButton.insertAdjacentElement('afterend', logicButton);
   }
 
   root?.addEventListener('click', event => {
     if (event.target.closest('[data-room-launch]')) openRoom();
+    if (event.target.closest('[data-logic-launch]')) openLogicEntry();
+    if (event.target.closest('[data-logic-home]')) backToLocal();
     if (event.target.closest('[data-room-recover]')) backToLocal();
+  });
+
+  root?.addEventListener('submit', event => {
+    if (event.target.id !== 'logicCodeForm') return;
+    event.preventDefault();
+    const code = String(event.target.elements.code.value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (code.length !== 5) {
+      root.querySelector('#logicCodeError').textContent = 'Код должен состоять из пяти символов.';
+      return;
+    }
+    const url = new URL(location.href);
+    url.search = '';
+    url.searchParams.set('logic-room', code);
+    location.href = url.toString();
   });
 
   const observer = new MutationObserver(enhanceHome);
