@@ -25,7 +25,9 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 }
 
-init();
+// The dedicated TV Logic and phone Logic routes own #app entirely.
+const standaloneLogic = new URLSearchParams(location.search);
+if (!standaloneLogic.has('logic-tv') && !standaloneLogic.has('logic-room')) init();
 
 async function init() {
   try {
