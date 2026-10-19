@@ -128,7 +128,7 @@
 
   function renderEntry(message = '') {
     clearInterval(TV.timerId);
-    root.innerHTML = `<section class="tv-shell">${header('TV режим')}<div class="tv-entry-card"><div class="tv-logo">4PLAY</div><h1>Главный экран вечеринки</h1><p>Телевизор создаёт комнату, ведёт партию и показывает всё общее. Телефоны становятся личными пультами игроков.</p><div class="tv-host-actions"><button type="button" data-tv-action="create-room">Создать комнату</button></div>${message ? `<div class="tv-error">${esc(message)}</div>` : ''}</div></section>`;
+    root.innerHTML = `<section class="tv-shell">${header('TV режим')}<div class="tv-entry-card"><div class="tv-logo">4PLAY</div><h1>Выбери игру</h1><p>Телевизор ведёт вечеринку, а любые смартфоны подключаются по QR-коду. Выбирай, во что играем.</p><div class="tv-host-actions"><a class="tv-logic-launch" href="./?logic-tv">🧠 4PLAY Логика · Новинка</a><button type="button" data-tv-action="create-room">Ну ты понял · Играть</button></div>${message ? `<div class="tv-error">${esc(message)}</div>` : ''}</div></section>`;
   }
 
   function flattenPresence() {
