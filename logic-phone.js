@@ -11,6 +11,23 @@
   function configOkay(){const c=config();return /^https:\/\/.+\.supabase\.co$/i.test(c.url)&&c.key.length>20;}
   function member(){return C.state?.players?.find(p=>p.id===C.playerId);}
   function teamName(i){return i===0?'Розовые':'Фиолетовые';}
+  function isOrganizer(){
+    return !!member() && !!C.state?.controllerId && C.state.controllerId===C.playerId;
+  }
+  function organizerControls(phase){
+    if(!isOrganizer())return '';
+    const n=C.state.players?.length||0;
+    if(phase==='lobby'){
+      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>Когда все подключатся, запускай шоу прямо отсюда.</p><button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>';
+    }
+    if(phase==='question'){
+      return '<div class="logic-organizer"><div class="logic-label">Управление игрой</div><button type="button" class="logic-secondary" data-logic-phone="skip">Пропустить загадку</button></div>';
+    }
+    if(phase==='final'){
+      return '<div class="logic-organizer"><div class="logic-label">Управление вечеринкой</div><button type="button" data-logic-phone="rematch">↻ Реванш</button><button type="button" class="logic-secondary" data-logic-phone="lobby">В лобби</button></div>';
+    }
+    return '';
+  }
   function header(){
     return '<div class="logic-phone-head"><strong>4PLAY · ЛОГИКА</strong><span>'+esc(C.code)+' · '+(C.online?'● Онлайн':'○ Связь')+'</span></div>';
   }
@@ -28,7 +45,7 @@
   }
   function renderLobby(){
     const p=member();
-    shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>Телевизор начнёт игру, когда все будут готовы.</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 8</div></div><div class="logic-status">Смотри на телевизор 📺</div>');
+    shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>'+(isOrganizer()?'Ты управляешь игрой. Пульт телевизора не нужен.':'Ждём, пока организатор начнёт игру.')+'</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 8</div></div>'+organizerControls('lobby')+'<div class="logic-status">Смотри на телевизор 📺</div>');
   }
   function renderQuestion(){
     const s=C.state,p=member(),blocked=s.blockedTeams?.includes(p?.team);
@@ -48,18 +65,18 @@
     } else {
       controls='<button class="logic-buzzer" data-logic-phone="buzz" '+(disabled?'disabled':'')+'>'+(somebody?'ОТВЕЧАЮТ':blocked?'ПОПЫТКА ИСЧЕРПАНА':C.buzzedIndex===s.index?'НАЖАТО':'ЗНАЮ!')+'</button>';
     }
-    const body='<div class="logic-card" style="margin-top:24px"><div class="logic-label">Загадка '+(s.index+1)+' / '+(window.FOURPLAY_LOGIC_DATA?.questions.length||12)+'</div><h1>Смотри на TV</h1><p>Найди связь между изображениями.</p>'+scores()+'</div><div class="logic-status">'+description+'</div>'+controls;
+    const body='<div class="logic-card" style="margin-top:24px"><div class="logic-label">Загадка '+(s.index+1)+' / '+(window.FOURPLAY_LOGIC_DATA?.questions.length||12)+'</div><h1>Смотри на TV</h1><p>Найди связь между изображениями.</p>'+scores()+'</div><div class="logic-status">'+description+'</div>'+controls+organizerControls('question');
     shell(body);
     if(ownTurn&&!sent)root.querySelector('#logicAnswerInput')?.focus({preventScroll:true});
   }
   function renderReveal(){
     const q=window.FOURPLAY_LOGIC_DATA?.questions[C.state.index];
-    shell('<div class="logic-card" style="margin-top:30px;text-align:center"><div class="logic-label">Правильный ответ</div><h1>'+esc(q?.answer||'Разгадка на TV')+'</h1><p>'+esc(q?.explain||'')+'</p>'+scores()+'</div><div class="logic-status">Следующий вопрос на телевизоре →</div>');
+    shell('<div class="logic-card" style="margin-top:30px;text-align:center"><div class="logic-label">Правильный ответ</div><h1>'+esc(q?.answer||'Разгадка на TV')+'</h1><p>'+esc(q?.explain||'')+'</p>'+scores()+'</div><div class="logic-status">Следующий вопрос появится автоматически через несколько секунд.</div>');
   }
   function renderFinal(){
     const s=C.state;
     const winner=s.scores[0]===s.scores[1]?'Ничья':teamName(s.scores[0]>s.scores[1]?0:1);
-    shell('<div class="logic-card" style="margin:auto 0;text-align:center"><div class="logic-label">Конец игры</div><h1>🏆 '+esc(winner)+'</h1>'+scores()+'<p>Новая партия запускается с телевизора.</p></div><div class="logic-status">Спасибо за игру!</div>');
+    shell('<div class="logic-card" style="margin:auto 0;text-align:center"><div class="logic-label">Конец игры</div><h1>🏆 '+esc(winner)+'</h1>'+scores()+'<p>Телевизор показывает результаты. Реванш запускает организатор со смартфона.</p></div>'+organizerControls('final')+'<div class="logic-status">Спасибо за игру!</div>');
   }
   function render(){
     if(!C.online)return renderWaiting();
@@ -105,6 +122,21 @@
       render();
     }
   }
+  async function sendControl(command){
+    if(!isOrganizer()||!['start','skip','rematch','lobby'].includes(command)||!C.channel)return;
+    const phase=C.state?.phase;
+    if(command==='start' && (phase!=='lobby'||C.state.players.length<2))return;
+    if(command==='skip' && phase!=='question')return;
+    if((command==='rematch'||command==='lobby') && phase!=='final')return;
+    const button=root.querySelector('[data-logic-phone="'+command+'"]');
+    if(button)button.disabled=true;
+    try{
+      await C.channel.send({type:'broadcast',event:'control',payload:{playerId:C.playerId,command}});
+    }catch(e){
+      console.error('Logic organizer control failed',e);
+      if(button?.isConnected)button.disabled=false;
+    }
+  }
   async function connect(name){
     if(C.client)return;
     C.name=String(name||'').trim().slice(0,20);
@@ -145,6 +177,7 @@
     const action=event.target.closest('[data-logic-phone]')?.dataset.logicPhone;
     if(action==='buzz')void buzz();
     if(action==='retry')void connect(C.name);
+    if(['start','skip','rematch','lobby'].includes(action))void sendControl(action);
   });
   addEventListener('beforeunload',()=>{if(C.client&&C.channel)void C.client.removeChannel(C.channel);});
   renderJoin();
