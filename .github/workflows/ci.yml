@@ -32,12 +32,15 @@ jobs:
           node --check logic-data.js
           node --check logic-tv.js
           node --check logic-phone.js
+          node --check logic-answer-check.js
           node --check player-profile.js
           node --check sw.js
           node --check supabase-config.js
 
       - name: Check Logic question pack
-        run: node scripts/test-logic.cjs
+        run: |
+          node scripts/test-logic.cjs
+          node scripts/test-logic-answers.cjs
 
       - name: Validate card JSON
         run: |
