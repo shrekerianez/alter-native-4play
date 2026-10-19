@@ -29,9 +29,15 @@ jobs:
           node --check room-qr.js
           node --check room-entry.js
           node --check tv-mode.js
+          node --check logic-data.js
+          node --check logic-tv.js
+          node --check logic-phone.js
           node --check player-profile.js
           node --check sw.js
           node --check supabase-config.js
+
+      - name: Check Logic question pack
+        run: node scripts/test-logic.cjs
 
       - name: Validate card JSON
         run: |
