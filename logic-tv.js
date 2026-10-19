@@ -9,6 +9,7 @@
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const TV = {code:clean(params.get('logic-tv')), client:null,channel:null,online:false,
     people:[], state:null,timer:null,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false};
+  const REVEAL_MS=7500;
   function uuid(){return crypto.randomUUID ? crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2);}
   function clean(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);}
   function code(){const b=new Uint8Array(5);crypto.getRandomValues(b);return Array.from(b,x=>alphabet[x%alphabet.length]).join('');}
@@ -21,11 +22,11 @@
   function persist(){try{if(TV.code&&TV.state)sessionStorage.setItem('4play.logic.tv.'+TV.code,JSON.stringify(TV.state));}catch{}}
   function readSaved(){try{const s=JSON.parse(sessionStorage.getItem('4play.logic.tv.'+TV.code)||'null');return s?.gameId==='logic'&&s.code===TV.code?s:null;}catch{return null;}}
   function header(label='Логическая вечеринка'){
-    return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div><div class="logic-row"><span class="logic-label">'+(TV.online?'● Онлайн':'○ Подключение')+'</span><a class="logic-button" href="./?tv">← Каталог</a></div></header>';
+    return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div><div class="logic-row"><span class="logic-label">'+(TV.online?'● Онлайн':'○ Подключение')+'</span><span class="logic-label">Управление со смартфонов</span></div></header>';
   }
   function frame(body,label){root.innerHTML='<section class="logic-tv">'+header(label)+body+'</section>'; }
   function renderIntro(error=''){
-    frame('<main class="logic-intro"><div class="logic-label">Новое игровое шоу AlterNative</div><h1>А у вас есть<br>логика?</h1><p>Две команды. Четыре раунда. Двенадцать загадок. Собери друзей с любыми смартфонами и подключайся по QR-коду.</p><div class="logic-row"><button class="primary" data-logic-tv="create">Создать игру</button></div>'+(error?'<div class="logic-error">'+esc(error)+'</div>':'')+'</main>','Выбирай игру');
+    frame('<main class="logic-intro"><div class="logic-label">Игровой экран · AlterNative</div><h1>А у вас есть<br>логика?</h1><p>Создаём комнату автоматически. Всё управление будет на телефонах участников.</p><div class="logic-label">Подключение к игровому серверу…</div>'+(error?'<div class="logic-error">'+esc(error)+'</div>':'')+'</main>','4PLAY Логика');
   }
   function playerList(team){
     const a=(TV.state?.players||[]).filter(p=>p.team===team);
@@ -33,7 +34,7 @@
   }
   function renderLobby(){
     const count=TV.state?.players?.length||0;
-    frame('<main class="logic-lobby"><div class="logic-panel"><div class="logic-label">Комната для 2–8 игроков</div><div class="logic-code">'+esc(TV.code)+'</div><p class="logic-hint">'+count+' из 8 подключились · команды формируются автоматически</p><div class="logic-players"><div class="logic-team"><h3>● '+teamName(0)+'</h3>'+playerList(0)+'</div><div class="logic-team"><h3>● '+teamName(1)+'</h3>'+playerList(1)+'</div></div><div class="logic-row" style="margin-top:30px"><button class="primary" data-logic-tv="start" '+(count<2?'disabled':'')+'>Начать шоу</button></div></div><div class="logic-panel"><div id="logicQr" class="logic-qr" aria-label="QR код комнаты">'+esc(TV.code)+'</div><p class="logic-hint">Сканируйте QR камерой телефона<br>или введите код комнаты.</p><div class="logic-label">'+esc(location.origin+location.pathname)+'</div></div></main>','Игроки и команды');
+    frame('<main class="logic-lobby"><div class="logic-panel"><div class="logic-label">Комната для 2–8 игроков</div><div class="logic-code">'+esc(TV.code)+'</div><p class="logic-hint">'+count+' из 8 подключились · команды формируются автоматически</p><div class="logic-players"><div class="logic-team"><h3>● '+teamName(0)+'</h3>'+playerList(0)+'</div><div class="logic-team"><h3>● '+teamName(1)+'</h3>'+playerList(1)+'</div></div><div class="logic-row" style="margin-top:30px"><div class="logic-hint">'+(count<2?'Ждём минимум двух игроков…':'Организатор запускает шоу на своём смартфоне')+'</div></div></div><div class="logic-panel"><div id="logicQr" class="logic-qr" aria-label="QR код комнаты">'+esc(TV.code)+'</div><p class="logic-hint">Сканируйте QR камерой телефона<br>или введите код комнаты.</p><div class="logic-label">'+esc(location.origin+location.pathname)+'</div></div></main>','Игроки и команды');
     renderQr();
   }
   function tiles(q){
@@ -50,18 +51,19 @@
     if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+teamName(s.buzz.team)+' · вводит ответ на смартфоне</div>';
     else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
     else description='<div class="logic-hint">Знаешь ответ? Нажми «ЗНАЮ!» на телефоне, затем напиши ответ.</div>';
-    const control='<div class="logic-hint">После отправки ответа таймер останавливается автоматически.</div><button data-logic-tv="reveal">Пропустить загадку</button>';
+    const control='<div class="logic-hint">Ответы принимаются со смартфонов · управление у организатора.</div>';
     frame('<main class="logic-arena">'+scores()+'<div class="logic-stage"><div class="logic-label">Вопрос '+(s.index+1)+' из '+DATA.questions.length+' · '+esc(round?.name||'')+'</div><h1>'+esc(round?.hint||'')+'</h1>'+tiles(q)+description+'</div><div class="logic-ribbon">'+control+'</div></main>','Раунд '+(DATA.rounds.findIndex(r=>r.id===q.round)+1)+' / 4');
     tick();
   }
   function renderReveal(){
     const q=question(),s=TV.state;
-    frame('<main class="logic-arena">'+scores().replace('id="logicClock" class="logic-clock">45','class="logic-clock">✓')+'<div class="logic-stage"><div class="logic-label">Разгадка · вопрос '+(s.index+1)+'</div>'+tiles(q)+'<div class="logic-answer">'+esc(q.answer)+'</div><p class="logic-explain">'+esc(q.explain)+'</p></div><div class="logic-ribbon"><button class="primary" data-logic-tv="next">'+(s.index+1<DATA.questions.length?'Следующая загадка →':'Финал →')+'</button></div></main>','Ответ раскрыт');
+    frame('<main class="logic-arena">'+scores().replace('id="logicClock" class="logic-clock">45','class="logic-clock">✓')+'<div class="logic-stage"><div class="logic-label">Разгадка · вопрос '+(s.index+1)+'</div>'+tiles(q)+'<div class="logic-answer">'+esc(q.answer)+'</div><p class="logic-explain">'+esc(q.explain)+'</p></div><div class="logic-ribbon"><div class="logic-hint">'+(s.index+1<DATA.questions.length?'Следующая загадка':'Финальные результаты')+' автоматически через <strong id="logicNextClock">8</strong> с</div></div></main>','Ответ раскрыт');
+    tick();
   }
   function renderFinal(){
     const scores=TV.state.scores;
     const winner=scores[0]===scores[1]?'Ничья!':teamName(scores[0]>scores[1]?0:1)+' победили!';
-    frame('<main class="logic-final"><div class="logic-label">Финал вечеринки</div><h1>🏆 '+esc(winner)+'</h1><div class="logic-code">'+scores[0]+' : '+scores[1]+'</div><p class="logic-hint">Спасибо за игру! Готовы ещё немного напрячь извилины?</p><div class="logic-row"><button class="primary" data-logic-tv="rematch">Реванш</button><button data-logic-tv="lobby">В лобби</button></div></main>','Результаты');
+    frame('<main class="logic-final"><div class="logic-label">Финал вечеринки</div><h1>🏆 '+esc(winner)+'</h1><div class="logic-code">'+scores[0]+' : '+scores[1]+'</div><p class="logic-hint">Спасибо за игру! Готовы ещё немного напрячь извилины?</p><div class="logic-hint">Организатор выбирает реванш или возврат в лобби на своём смартфоне.</div></main>','Результаты');
   }
   function render(){
     clearInterval(TV.timer);TV.timer=null;
@@ -91,7 +93,15 @@
   }
   async function presence(){
     TV.people=currentPresence();
-    if(TV.state?.phase!=='lobby')return;
+    if(!TV.state)return;
+    if(TV.state.phase!=='lobby'){
+      // If the organizer disconnects, choose the next currently online player.
+      const online=new Set(TV.people.map(p=>p.id));
+      const nextId=(online.has(TV.state.controllerId)?TV.state.controllerId:null)
+        ||TV.state.players.find(p=>online.has(p.id))?.id||'';
+      if(nextId!==TV.state.controllerId)await change(s=>{s.controllerId=nextId;});
+      return;
+    }
     const prev=new Map((TV.state.players||[]).map(p=>[p.id,p.team]));
     let n=[0,0];
     const people=TV.people.map(p=>{
@@ -99,19 +109,34 @@
       const team=(previous===0||previous===1)?previous:(n[0]<=n[1]?0:1);
       n[team]++;return {...p,team};
     });
-    // Keep the two teams reasonably balanced if people leave and rejoin.
     if(Math.abs(n[0]-n[1])>1)people.forEach((p,i)=>p.team=i%2);
-    if(JSON.stringify(people)===JSON.stringify(TV.state.players))return;
-    await change(s=>{s.players=people;});
+    const controllerId=people[0]?.id||'';
+    if(JSON.stringify(people)===JSON.stringify(TV.state.players)
+      &&controllerId===TV.state.controllerId)return;
+    await change(s=>{s.players=people;s.controllerId=controllerId;});
   }
   function tick(){
-    if(TV.state?.phase!=='question')return;
-    const seconds=Math.ceil(Math.max(0,Number(TV.state.deadline||0)-Date.now())/1000);
+    const s=TV.state;
+    if(!s)return;
+    if(s.phase==='reveal'){
+      const seconds=Math.ceil(Math.max(0,Number(s.revealEndsAt||0)-Date.now())/1000);
+      const node=root.querySelector('#logicNextClock');
+      if(node)node.textContent=String(seconds);
+      if(seconds<=0){
+        clearInterval(TV.timer);TV.timer=null;
+        void next();
+        return;
+      }
+      if(!TV.timer)TV.timer=setInterval(tick,250);
+      return;
+    }
+    if(s.phase!=='question')return;
+    const seconds=Math.ceil(Math.max(0,Number(s.deadline||0)-Date.now())/1000);
     const node=root.querySelector('#logicClock');
     if(node){node.textContent=String(seconds);node.classList.toggle('urgent',seconds<=10);}
     if(seconds<=0){
       clearInterval(TV.timer);TV.timer=null;
-      if(TV.state.buzz)void expireAnswer(TV.state.buzz.attemptId);
+      if(s.buzz)void expireAnswer(s.buzz.attemptId);
       else void reveal();
       return;
     }
@@ -119,7 +144,7 @@
   }
   async function reveal(){
     if(TV.state?.phase!=='question')return;
-    await change(s=>{s.phase='reveal';s.deadline=0;s.buzz=null;});
+    await change(s=>{s.phase='reveal';s.deadline=0;s.buzz=null;s.revealEndsAt=Date.now()+REVEAL_MS;});
   }
   async function buzz(payload){
     const id=String(payload?.playerId||''),s=TV.state;
@@ -147,9 +172,10 @@
       if(result.correct){
         next.scores[team]++;
         next.phase='reveal';
+        next.revealEndsAt=Date.now()+REVEAL_MS;
       } else {
         next.blockedTeams=[...(next.blockedTeams||[]),team];
-        if(next.blockedTeams.length>=2) next.phase='reveal';
+        if(next.blockedTeams.length>=2){next.phase='reveal';next.revealEndsAt=Date.now()+REVEAL_MS;}
         else next.deadline=Date.now()+20000; // Fresh chance for the other team.
       }
     });
@@ -172,23 +198,36 @@
       if(s.phase!=='reveal')return false;
       s.index++;
       if(s.index>=DATA.questions.length){s.phase='final';return;}
-      s.phase='question';s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.deadline=Date.now()+45*1000;
+      s.phase='question';s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.revealEndsAt=0;s.deadline=Date.now()+45*1000;
     });
   }
   async function start(){
     if(TV.state?.phase!=='lobby'||TV.state.players.length<2)return;
-    await change(s=>{s.phase='question';s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.deadline=Date.now()+45000;});
+    await change(s=>{s.phase='question';s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.revealEndsAt=0;s.deadline=Date.now()+45000;});
   }
   async function reset(toLobby){
-    await change(s=>{s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.deadline=0;s.phase=toLobby?'lobby':'question';if(!toLobby)s.deadline=Date.now()+45000;});
+    await change(s=>{s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.revealEndsAt=0;s.deadline=0;s.phase=toLobby?'lobby':'question';if(!toLobby)s.deadline=Date.now()+45000;});
     if(toLobby)await presence();
+  }
+  async function handleControl(payload){
+    const s=TV.state;
+    const id=String(payload?.playerId||'');
+    const online=TV.people.some(p=>p.id===id);
+    if(!s||!id||!online||id!==s.controllerId||!s.players.some(p=>p.id===id))return;
+    switch(payload?.command){
+      case 'start': if(s.phase==='lobby')await start();break;
+      case 'skip': if(s.phase==='question')await reveal();break;
+      case 'rematch': if(s.phase==='final')await reset(false);break;
+      case 'lobby': if(s.phase==='final')await reset(true);break;
+    }
   }
   async function createRoom(){
     if(TV.busy)return;
     if(!configured())return renderIntro('Сначала нужно настроить Supabase Realtime.');
     TV.busy=true;TV.code=TV.code||code();
     history.replaceState(null,'','./?logic-tv='+encodeURIComponent(TV.code));
-    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null};
+    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0};
+    if(TV.state.phase==='reveal'&&!TV.state.revealEndsAt) TV.state.revealEndsAt=Date.now()+REVEAL_MS;
     persist();render();
     try{
       const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
@@ -198,6 +237,7 @@
         .on('broadcast',{event:'hello'},()=>void broadcast())
         .on('broadcast',{event:'buzz'},({payload})=>void buzz(payload))
         .on('broadcast',{event:'answer'},({payload})=>void submitAnswer(payload))
+        .on('broadcast',{event:'control'},({payload})=>void handleControl(payload))
         .subscribe(async status=>{
           if(status==='SUBSCRIBED'){TV.online=true;render();await broadcast();await presence();}
           if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){TV.online=false;renderIntro('Не удалось подключиться к комнате. Проверь интернет.');}
@@ -222,16 +262,7 @@
       new QRCode(node,{text:url.toString(),width:225,height:225,correctLevel:QRCode.CorrectLevel.M});
     }catch{if(node.isConnected)node.textContent=TV.code;}
   }
-  root.addEventListener('click',event=>{
-    const action=event.target.closest('[data-logic-tv]')?.dataset.logicTv;
-    if(!action)return;
-    if(action==='create')void createRoom();
-    if(action==='start')void start();
-    if(action==='reveal')void reveal();
-    if(action==='next')void next();
-    if(action==='rematch')void reset(false);
-    if(action==='lobby')void reset(true);
-  });
   addEventListener('beforeunload',()=>{clearInterval(TV.timer);if(TV.client&&TV.channel)void TV.client.removeChannel(TV.channel);});
-  if(TV.code)void createRoom();else renderIntro();
+  renderIntro();
+  void createRoom();
 })();
