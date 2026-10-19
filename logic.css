@@ -79,3 +79,10 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 .logic-phone .logic-answer-form button.logic-send{min-height:72px;color:#fff;background:linear-gradient(125deg,#9259fa,#f75388);font-size:22px}
 .logic-phone .logic-answer-form p{font-size:14px;line-height:1.45;color:#beb1d0}
 .logic-phone .logic-answer-form button:disabled{opacity:.5}
+
+/* Remote-free hosting: the first connected phone receives these controls. */
+.logic-phone .logic-organizer{display:flex;flex-direction:column;gap:13px;margin:18px 0;padding:20px;border:1px solid rgba(225,172,255,.4);border-radius:25px;background:linear-gradient(140deg,rgba(132,67,220,.17),rgba(243,75,119,.08))}
+.logic-phone .logic-organizer .logic-label{font-size:14px;color:#e5bbff}
+.logic-phone .logic-organizer p{font-size:15px;color:#d2c6df}
+.logic-phone .logic-organizer button{background:linear-gradient(135deg,#a85bfb,#f6538b);color:#fff;min-height:62px}
+.logic-phone .logic-organizer button.logic-secondary{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.25);color:#fff}
