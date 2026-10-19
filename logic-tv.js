@@ -46,8 +46,11 @@
   function renderQuestion(){
     const q=question(), s=TV.state, round=DATA.rounds.find(r=>r.id===q?.round);
     const person=s?.buzz && s.players.find(p=>p.id===s.buzz.playerId);
-    const description=person?'<div class="logic-buzz">Первым нажал: '+esc(person?.name||'Игрок')+' · '+teamName(s.buzz.team)+'</div>':'<div class="logic-hint">Кто знает ответ, нажмите кнопку на телефоне!</div>';
-    const control=person?'<button class="primary" data-logic-tv="right">✓ Верно · +1</button><button data-logic-tv="wrong">✕ Не угадали</button><button data-logic-tv="reveal">Показать ответ</button>':'<button data-logic-tv="reveal">Показать ответ</button>';
+    let description;
+    if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+teamName(s.buzz.team)+' · вводит ответ на смартфоне</div>';
+    else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
+    else description='<div class="logic-hint">Знаешь ответ? Нажми «ЗНАЮ!» на телефоне, затем напиши ответ.</div>';
+    const control='<div class="logic-hint">После отправки ответа таймер останавливается автоматически.</div><button data-logic-tv="reveal">Пропустить загадку</button>';
     frame('<main class="logic-arena">'+scores()+'<div class="logic-stage"><div class="logic-label">Вопрос '+(s.index+1)+' из '+DATA.questions.length+' · '+esc(round?.name||'')+'</div><h1>'+esc(round?.hint||'')+'</h1>'+tiles(q)+description+'</div><div class="logic-ribbon">'+control+'</div></main>','Раунд '+(DATA.rounds.findIndex(r=>r.id===q.round)+1)+' / 4');
     tick();
   }
@@ -103,43 +106,81 @@
   }
   function tick(){
     if(TV.state?.phase!=='question')return;
-    const seconds=Math.ceil(Math.max(0,TV.state.deadline-Date.now())/1000);
+    const seconds=Math.ceil(Math.max(0,Number(TV.state.deadline||0)-Date.now())/1000);
     const node=root.querySelector('#logicClock');
     if(node){node.textContent=String(seconds);node.classList.toggle('urgent',seconds<=10);}
-    if(seconds<=0){clearInterval(TV.timer);TV.timer=null;void reveal();return;}
+    if(seconds<=0){
+      clearInterval(TV.timer);TV.timer=null;
+      if(TV.state.buzz)void expireAnswer(TV.state.buzz.attemptId);
+      else void reveal();
+      return;
+    }
     if(!TV.timer)TV.timer=setInterval(tick,250);
   }
-  async function reveal(){if(TV.state?.phase!=='question')return;await change(s=>{s.phase='reveal';s.deadline=0;});}
+  async function reveal(){
+    if(TV.state?.phase!=='question')return;
+    await change(s=>{s.phase='reveal';s.deadline=0;s.buzz=null;});
+  }
   async function buzz(payload){
     const id=String(payload?.playerId||''),s=TV.state;
-    if(!s||s.phase!=='question'||s.buzz||s.deadline<Date.now())return;
+    if(!s||s.phase!=='question'||s.buzz||s.deadline<=Date.now()||Number(payload?.index)!==s.index)return;
     const player=s.players.find(p=>p.id===id);
     if(!player||s.blockedTeams?.includes(player.team)||!TV.people.some(p=>p.id===id))return;
-    await change(next=>{if(next.phase!=='question'||next.buzz)return false;next.buzz={playerId:id,team:player.team};next.deadline=Date.now()+15000;});
-  }
-  async function adjudicate(correct){
-    const s=TV.state;if(s?.phase!=='question'||!s.buzz)return;
-    if(correct)await change(next=>{next.scores[next.buzz.team]++;next.phase='reveal';next.deadline=0;});
-    else await change(next=>{
-      next.blockedTeams=[...(next.blockedTeams||[]),next.buzz.team];
-      next.buzz=null;
-      next.deadline=next.blockedTeams.length===2?Date.now():Date.now()+Math.max(10,Math.min(25,next.timeRemaining||20));
+    await change(next=>{
+      if(next.phase!=='question'||next.buzz||next.deadline<=Date.now())return false;
+      next.buzz={playerId:id,team:player.team,attemptId:uuid()};
+      next.deadline=Date.now()+15000;
+      next.lastResult=null;
     });
+  }
+  async function finishAttempt(attemptId, typed, expired=false){
+    const s=TV.state;
+    if(!s||s.phase!=='question'||!s.buzz||s.buzz.attemptId!==attemptId)return;
+    const result=expired?{correct:false,typo:false}:window.FOURPLAY_LOGIC_CHECK.check(typed,question());
+    await change(next=>{
+      if(next.phase!=='question'||next.buzz?.attemptId!==attemptId)return false;
+      const playerId=next.buzz.playerId;
+      const team=next.buzz.team;
+      next.lastResult={playerId,correct:result.correct,typo:result.typo,expired};
+      next.buzz=null;
+      next.deadline=0; // Stop the current timer immediately on accepted submission.
+      if(result.correct){
+        next.scores[team]++;
+        next.phase='reveal';
+      } else {
+        next.blockedTeams=[...(next.blockedTeams||[]),team];
+        if(next.blockedTeams.length>=2) next.phase='reveal';
+        else next.deadline=Date.now()+20000; // Fresh chance for the other team.
+      }
+    });
+  }
+  async function expireAnswer(attemptId){
+    await finishAttempt(attemptId,'',true);
+  }
+  async function submitAnswer(payload){
+    const s=TV.state;
+    if(!s||s.phase!=='question'||!s.buzz)return;
+    const id=String(payload?.playerId||'');
+    const input=String(payload?.text||'').trim();
+    if(s.buzz.playerId!==id||s.buzz.attemptId!==payload?.attemptId
+      ||Number(payload?.index)!==s.index||!input||input.length>70)return;
+    if(s.deadline<=Date.now())return expireAnswer(s.buzz.attemptId);
+    await finishAttempt(s.buzz.attemptId,input);
   }
   async function next(){
     await change(s=>{
       if(s.phase!=='reveal')return false;
       s.index++;
       if(s.index>=DATA.questions.length){s.phase='final';return;}
-      s.phase='question';s.buzz=null;s.blockedTeams=[];s.deadline=Date.now()+45*1000;
+      s.phase='question';s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.deadline=Date.now()+45*1000;
     });
   }
   async function start(){
     if(TV.state?.phase!=='lobby'||TV.state.players.length<2)return;
-    await change(s=>{s.phase='question';s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.deadline=Date.now()+45000;});
+    await change(s=>{s.phase='question';s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.deadline=Date.now()+45000;});
   }
   async function reset(toLobby){
-    await change(s=>{s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.deadline=0;s.phase=toLobby?'lobby':'question';if(!toLobby)s.deadline=Date.now()+45000;});
+    await change(s=>{s.index=0;s.scores=[0,0];s.buzz=null;s.blockedTeams=[];s.lastResult=null;s.deadline=0;s.phase=toLobby?'lobby':'question';if(!toLobby)s.deadline=Date.now()+45000;});
     if(toLobby)await presence();
   }
   async function createRoom(){
@@ -147,7 +188,7 @@
     if(!configured())return renderIntro('Сначала нужно настроить Supabase Realtime.');
     TV.busy=true;TV.code=TV.code||code();
     history.replaceState(null,'','./?logic-tv='+encodeURIComponent(TV.code));
-    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[]};
+    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null};
     persist();render();
     try{
       const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
@@ -156,6 +197,7 @@
       TV.channel.on('presence',{event:'sync'},()=>void presence())
         .on('broadcast',{event:'hello'},()=>void broadcast())
         .on('broadcast',{event:'buzz'},({payload})=>void buzz(payload))
+        .on('broadcast',{event:'answer'},({payload})=>void submitAnswer(payload))
         .subscribe(async status=>{
           if(status==='SUBSCRIBED'){TV.online=true;render();await broadcast();await presence();}
           if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){TV.online=false;renderIntro('Не удалось подключиться к комнате. Проверь интернет.');}
@@ -185,8 +227,6 @@
     if(!action)return;
     if(action==='create')void createRoom();
     if(action==='start')void start();
-    if(action==='right')void adjudicate(true);
-    if(action==='wrong')void adjudicate(false);
     if(action==='reveal')void reveal();
     if(action==='next')void next();
     if(action==='rematch')void reset(false);
