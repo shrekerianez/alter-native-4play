@@ -1,4 +1,4 @@
-const CACHE_NAME = '4play-shell-v18';
+const CACHE_NAME = '4play-shell-v19';
 const APP_SHELL = [
   './',
   './index.html',
@@ -20,6 +20,7 @@ const APP_SHELL = [
   './player-profile.js',
   './tv-download.js',
   './logic-data.js',
+  './logic-answer-check.js',
   './logic-tv.js',
   './logic-phone.js',
   './supabase-config.js',
