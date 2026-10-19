@@ -2,6 +2,18 @@
   const params = new URL(location.href).searchParams;
   if (!params.has('tv')) return;
 
+  // Native Android TV APK launches /?tv. For the remote-free Logic prototype,
+  // open its display-only host automatically, no TV button/remote required.
+  // The legacy "Ну ты понял" host remains available at /?tv&classic=1
+  // and existing /?tv=CODE room links continue to work.
+  if (!params.get('tv') && !params.has('classic')) {
+    const url = new URL(location.href);
+    url.search = '';
+    url.searchParams.set('logic-tv', '');
+    location.replace(url.toString());
+    return;
+  }
+
   const PACKS = ['relationships','spicy','party','awkward','life','dark_humor'];
   const CATEGORY_META = {
     relationships: ['❤️','Отношения'],
