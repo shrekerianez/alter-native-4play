@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const ctx={window:{}};
+vm.runInNewContext(fs.readFileSync('logic-answer-check.js','utf8'),ctx);
+const check=ctx.window.FOURPLAY_LOGIC_CHECK.check;
+assert.equal(check('кароль лев',{answer:'Король Лев'}).correct,true);
+assert.equal(check('король лев',{answer:'Король Лев'}).correct,true);
+assert.equal(check('мед',{answer:'Мёд'}).correct,true);
+assert.equal(check('вол',{answer:'Волк'}).correct,false);
+assert.equal(check('морская звезда',{answer:'Морской волк'}).correct,false);
+console.log('PASS: Russian spelling tolerance and strict short answers');
