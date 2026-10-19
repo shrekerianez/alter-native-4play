@@ -3,7 +3,7 @@
   const code=String(params.get('logic-room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
   if(!code)return;
   const root=document.querySelector('#app');
-  const C={code,root,client:null,channel:null,state:null,playerId:'',name:'',online:false,buzzedIndex:null,joinedAt:0};
+  const C={code,root,client:null,channel:null,state:null,playerId:'',name:'',online:false,buzzedIndex:null,joinedAt:0,answerSentToken:null};
   const KEY='4play.playerId',NAME_KEY='4play.lastName';
   function uuid(){return crypto.randomUUID?crypto.randomUUID():'p-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
   function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -33,12 +33,24 @@
   function renderQuestion(){
     const s=C.state,p=member(),blocked=s.blockedTeams?.includes(p?.team);
     const somebody=s.buzz;
+    const ownTurn=somebody?.playerId===C.playerId;
+    const sent=ownTurn&&C.answerSentToken===somebody.attemptId;
     const disabled=!p||blocked||!!somebody||C.buzzedIndex===s.index||Date.now()>=Number(s.deadline||0);
     let description='Твоя команда: '+(p?teamName(p.team):'ожидание');
-    if(blocked)description='Ваша команда уже пыталась ответить';
-    if(somebody)description=s.buzz.playerId===C.playerId?'Твоя очередь! Назови ответ вслух.':'Отвечает '+esc(s.players.find(x=>x.id===s.buzz.playerId)?.name||'игрок');
-    const body='<div class="logic-card" style="margin-top:24px"><div class="logic-label">Загадка '+(s.index+1)+' / '+(window.FOURPLAY_LOGIC_DATA?.questions.length||12)+'</div><h1>Смотри на TV</h1><p>Найди связь между изображениями и нажми кнопку, если готов ответить.</p>'+scores()+'</div><div class="logic-status">'+description+'</div><button class="logic-buzzer" data-logic-phone="buzz" '+(disabled?'disabled':'')+'>'+(somebody?'ОТВЕЧАЮТ':blocked?'ПОПЫТКА ИСЧЕРПАНА':C.buzzedIndex===s.index?'НАЖАТО':'ЗНАЮ!')+'</button><p style="text-align:center">Нажав первым, ты получишь 15 секунд на устный ответ. Ведущий подтвердит результат на телевизоре.</p>';
+    if(blocked)description='Ваша команда уже использовала попытку';
+    if(somebody)description=ownTurn?(sent?'Ответ отправлен. Проверяем…':'Твой ход! Напиши ответ.'):'Отвечает '+esc(s.players.find(x=>x.id===s.buzz.playerId)?.name||'игрок');
+    if(!somebody&&s.lastResult&&!s.lastResult.correct)description='Предыдущий ответ неверный. Ход переходит другой команде.';
+    let controls='';
+    if(ownTurn&&!sent){
+      controls='<form id="logicAnswerForm" class="logic-answer-form"><label for="logicAnswerInput" class="logic-label">Твой ответ</label><input id="logicAnswerInput" name="answer" type="text" maxlength="70" minlength="1" autocomplete="off" autocapitalize="sentences" enterkeyhint="send" placeholder="Напиши разгадку…" required><button class="logic-send" type="submit">Отправить ответ →</button><p>Пиши как знаешь: небольшие опечатки допускаются. Кнопка «Отправить» сразу остановит таймер на TV.</p></form>';
+    } else if(ownTurn&&sent) {
+      controls='<div class="logic-status">✓ Ответ отправлен<br>Ожидаем проверки на телевизоре</div>';
+    } else {
+      controls='<button class="logic-buzzer" data-logic-phone="buzz" '+(disabled?'disabled':'')+'>'+(somebody?'ОТВЕЧАЮТ':blocked?'ПОПЫТКА ИСЧЕРПАНА':C.buzzedIndex===s.index?'НАЖАТО':'ЗНАЮ!')+'</button>';
+    }
+    const body='<div class="logic-card" style="margin-top:24px"><div class="logic-label">Загадка '+(s.index+1)+' / '+(window.FOURPLAY_LOGIC_DATA?.questions.length||12)+'</div><h1>Смотри на TV</h1><p>Найди связь между изображениями.</p>'+scores()+'</div><div class="logic-status">'+description+'</div>'+controls;
     shell(body);
+    if(ownTurn&&!sent)root.querySelector('#logicAnswerInput')?.focus({preventScroll:true});
   }
   function renderReveal(){
     const q=window.FOURPLAY_LOGIC_DATA?.questions[C.state.index];
@@ -62,9 +74,10 @@
   function receive(state){
     if(!state||state.gameId!=='logic'||state.code!==C.code)return;
     if(C.state&&Number(state.version)<Number(C.state.version))return;
-    if(C.state&&state.index!==C.state.index)C.buzzedIndex=null;
+    if(C.state&&state.index!==C.state.index){C.buzzedIndex=null;C.answerSentToken=null;}
     // If another player was judged incorrect, previously losing buzzers may try again.
     else if(C.state?.buzz&&state.phase==='question'&&!state.buzz)C.buzzedIndex=null;
+    if(!state.buzz||state.buzz.attemptId!==C.answerSentToken)C.answerSentToken=null;
     C.state=state;render();
   }
   async function buzz(){
@@ -73,6 +86,24 @@
     C.buzzedIndex=s.index;render();
     try{await C.channel.send({type:'broadcast',event:'buzz',payload:{playerId:C.playerId,index:s.index}});}
     catch(e){console.error('Logic buzz failed',e);C.buzzedIndex=null;render();}
+  }
+  async function sendAnswer(text){
+    const s=C.state;
+    const typed=String(text||'').trim();
+    if(!s||s.phase!=='question'||s.buzz?.playerId!==C.playerId||!typed||typed.length>70
+      ||Date.now()>=s.deadline||C.answerSentToken===s.buzz.attemptId)return;
+    const token=s.buzz.attemptId;
+    C.answerSentToken=token;
+    render(); // Disable form immediately; TV host stops its timer upon receiving this answer.
+    try {
+      await C.channel.send({type:'broadcast',event:'answer',payload:{
+        playerId:C.playerId,index:s.index,attemptId:token,text:typed
+      }});
+    } catch(e){
+      console.error('Logic answer failed',e);
+      if(C.state?.buzz?.attemptId===token)C.answerSentToken=null;
+      render();
+    }
   }
   async function connect(name){
     if(C.client)return;
@@ -102,6 +133,11 @@
     }catch(e){console.error('Logic phone join',e);C.client=null;C.channel=null;renderJoin('Не удалось подключиться.');}
   }
   root.addEventListener('submit',event=>{
+    if(event.target.id==='logicAnswerForm'){
+      event.preventDefault();
+      void sendAnswer(event.target.elements.answer.value);
+      return;
+    }
     if(event.target.id!=='logicJoin')return;
     event.preventDefault();void connect(event.target.elements.name.value);
   });
