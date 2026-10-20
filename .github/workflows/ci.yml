@@ -32,6 +32,8 @@ jobs:
           node --check logic-data.js
           node --check logic-tv.js
           node --check logic-phone.js
+          node --check logic-audio.js
+          node --check logic-qr-scan.js
           node --check logic-answer-check.js
           node --check player-profile.js
           node --check sw.js
@@ -42,6 +44,7 @@ jobs:
           node scripts/test-logic.cjs
           node scripts/test-logic-answers.cjs
           node scripts/test-logic-testbot.cjs
+          node scripts/test-logic-qr.cjs
 
       - name: Validate card JSON
         run: |
