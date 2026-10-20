@@ -58,7 +58,7 @@
     let description='Твоя команда: '+(p?teamName(p.team):'ожидание');
     if(blocked)description='Ваша команда уже использовала попытку';
     if(somebody)description=ownTurn?(sent?'Ответ отправлен. Проверяем…':'Твой ход! Напиши ответ.'):'Отвечает '+esc(s.players.find(x=>x.id===s.buzz.playerId)?.name||'игрок');
-    if(!somebody&&s.lastResult&&!s.lastResult.correct)description=s.testBotEnabled?'Неверный ответ. 🤖 Тест-бот сейчас ответит.':'Предыдущий ответ неверный. Ход переходит другой команде.';
+    if(!somebody&&s.lastResult&&!s.lastResult.correct)description=s.lastResult.testBot?'🤖 Тест-бот ошибся. Теперь твоя очередь!':s.testBotEnabled?'Неверный ответ. 🤖 Тест-бот сейчас ответит.':'Предыдущий ответ неверный. Ход переходит другой команде.';
     let controls='';
     if(ownTurn&&!sent){
       controls='<form id="logicAnswerForm" class="logic-answer-form"><label for="logicAnswerInput" class="logic-label">Твой ответ</label><input id="logicAnswerInput" name="answer" type="text" maxlength="70" minlength="1" autocomplete="off" autocapitalize="sentences" enterkeyhint="send" placeholder="Напиши разгадку…" required><button class="logic-send" type="submit">Отправить ответ →</button><p>Пиши как знаешь: небольшие опечатки допускаются. Кнопка «Отправить» сразу остановит таймер на TV.</p></form>';
