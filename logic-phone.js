@@ -15,8 +15,10 @@
   function teamName(i){return C.state?.teamNames?.[i]||DEFAULT_TEAMS[i];}
   function safeAvatar(raw){
     if(raw?.kind==='emoji'&&FUN_AVATARS.includes(raw.value))return {kind:'emoji',value:raw.value};
-    if(raw?.kind==='photo'&&typeof raw.value==='string'&&raw.value.length<=12000
-      &&/^data:image\\/jpeg;base64,[a-z0-9+/=]+$/i.test(raw.value))
+    const prefix='data:image/jpeg;base64,';
+    if(raw?.kind==='photo'&&typeof raw.value==='string'
+      &&raw.value.length<=12000&&raw.value.startsWith(prefix)
+      &&new RegExp('^[A-Za-z0-9+/=]+$').test(raw.value.slice(prefix.length)))
       return {kind:'photo',value:raw.value};
     return {kind:'emoji',value:'🥸'};
   }
