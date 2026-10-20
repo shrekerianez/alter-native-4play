@@ -3,14 +3,84 @@
   const code=String(params.get('logic-room')||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);
   if(!code)return;
   const root=document.querySelector('#app');
-  const C={code,root,client:null,channel:null,state:null,playerId:'',name:'',online:false,buzzedIndex:null,joinedAt:0,answerSentToken:null};
-  const KEY='4play.playerId',NAME_KEY='4play.lastName';
+  const C={code,root,client:null,channel:null,state:null,playerId:'',name:'',avatar:null,online:false,buzzedIndex:null,joinedAt:0,answerSentToken:null};
+  const KEY='4play.playerId',NAME_KEY='4play.lastName',AVATAR_KEY='4play.logic.avatar';
+  const FUN_AVATARS=['🦄','🤡','👽','🦖','🦊','🐸','🐷','🐵','🦝','🤠','🥸','🤖','👻','🐼','😈','🦩','🦀','🍕','🧟','🐙'];
+  const DEFAULT_TEAMS=['Розовые','Фиолетовые'];
   function uuid(){return crypto.randomUUID?crypto.randomUUID():'p-'+Date.now()+'-'+Math.random().toString(36).slice(2);}
   function esc(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function config(){const v=window.FOURPLAY_SUPABASE||{};return {url:String(v.url||''),key:String(v.key||'')};}
   function configOkay(){const c=config();return /^https:\/\/.+\.supabase\.co$/i.test(c.url)&&c.key.length>20;}
   function member(){return C.state?.players?.find(p=>p.id===C.playerId);}
-  function teamName(i){return i===0?'Розовые':'Фиолетовые';}
+  function teamName(i){return C.state?.teamNames?.[i]||DEFAULT_TEAMS[i];}
+  function safeAvatar(raw){
+    if(raw?.kind==='emoji'&&FUN_AVATARS.includes(raw.value))return {kind:'emoji',value:raw.value};
+    if(raw?.kind==='photo'&&typeof raw.value==='string'&&raw.value.length<=12000
+      &&/^data:image\\/jpeg;base64,[a-z0-9+/=]+$/i.test(raw.value))
+      return {kind:'photo',value:raw.value};
+    return {kind:'emoji',value:'🥸'};
+  }
+  function storedAvatar(){
+    try{return safeAvatar(JSON.parse(localStorage.getItem(AVATAR_KEY)||'null'));}
+    catch{return safeAvatar(null);}
+  }
+  function avatarMarkup(raw){
+    const av=safeAvatar(raw);
+    return av.kind==='photo'
+      ?'<img class="logic-person-avatar" src="'+esc(av.value)+'" alt="Фото игрока">'
+      :'<span class="logic-person-avatar" aria-hidden="true">'+av.value+'</span>';
+  }
+  function avatarPicker(){
+    const av=safeAvatar(C.avatar);
+    return '<div class="logic-avatar-picker"><div class="logic-label">Выбери смешной аватар или сделай фото</div>'
+      +'<div class="logic-avatar-preview">'+avatarMarkup(av)+'<span>Так тебя увидят на телевизоре</span></div>'
+      +'<div class="logic-avatar-grid">'+FUN_AVATARS.map(e=>'<button type="button" class="logic-avatar-option'+(av.kind==='emoji'&&e===av.value?' selected':'')+'" data-logic-avatar="'+e+'" aria-label="Аватар '+e+'" aria-pressed="'+(av.kind==='emoji'&&e===av.value)+'">'+e+'</button>').join('')+'</div>'
+      +'<div class="logic-avatar-photo-actions"><label for="logicCameraImage">📸 Сфоткаться</label><label for="logicGalleryImage">🖼️ Выбрать фото</label></div>'
+      +'<input id="logicCameraImage" class="logic-file-input" data-logic-photo type="file" accept="image/*" capture="user">'
+      +'<input id="logicGalleryImage" class="logic-file-input" data-logic-photo type="file" accept="image/*">'
+      +'</div>';
+  }
+  async function compressAvatar(file){
+    if(!file||!file.type?.startsWith('image/')||file.size>15*1024*1024)throw Error('Выбери изображение не больше 15 МБ.');
+    const src=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=()=>reject(new Error('Фото не удалось прочитать.'));
+      reader.readAsDataURL(file);
+    });
+    const img=await new Promise((resolve,reject)=>{
+      const image=new Image();image.onload=()=>resolve(image);
+      image.onerror=()=>reject(new Error('Фото не удалось открыть.'));
+      image.src=src;
+    });
+    const crop=Math.min(img.naturalWidth,img.naturalHeight);
+    if(!crop)throw Error('Некорректное изображение.');
+    for(const [size,quality] of [[96,.56],[80,.48],[64,.42]]){
+      const canvas=document.createElement('canvas');
+      canvas.width=size;canvas.height=size;
+      const context=canvas.getContext('2d');
+      if(!context)throw Error('Обработка фото недоступна.');
+      context.drawImage(img,(img.naturalWidth-crop)/2,(img.naturalHeight-crop)/2,crop,crop,0,0,size,size);
+      const data=canvas.toDataURL('image/jpeg',quality);
+      if(data.length<=12000)return {kind:'photo',value:data};
+    }
+    throw Error('Не удалось уменьшить фото.');
+  }
+  async function setAvatar(raw){
+    const avatar=safeAvatar(raw);
+    C.avatar=avatar;
+    try{localStorage.setItem(AVATAR_KEY,JSON.stringify(avatar));}
+    catch(e){console.warn('Avatar local storage unavailable',e);}
+    if(C.channel&&C.online){
+      try{await C.channel.track({role:'logic-player',id:C.playerId,name:C.name,joinedAt:C.joinedAt,avatar});}
+      catch(e){console.warn('Avatar broadcast failed',e);}
+    }
+    if(C.state?.phase==='lobby')renderLobby();
+    else if(!C.client){
+      const draft=root.querySelector('#logicJoin [name="name"]')?.value;
+      renderJoin('',draft);
+    }
+  }
   function isOrganizer(){
     return !!member() && !!C.state?.controllerId && C.state.controllerId===C.playerId;
   }
@@ -20,7 +90,7 @@
     const humans=C.state.players?.filter(p=>!p.isBot).length||0;
     const hasBot=!!C.state.testBotEnabled && C.state.players.some(p=>p.isBot);
     if(phase==='lobby'){
-      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>'+(hasBot?'🧪 Тестовый режим: ты и виртуальный соперник. Бот отвечает только после твоей ошибки.':'Когда все подключатся, запускай шоу прямо отсюда.')+'</p>'+(humans===1?'<button type="button" class="logic-secondary" data-logic-phone="test-bot">'+(hasBot?'✕ Убрать тест-бота':'🤖 Добавить тест-бота')+'</button>':'')+'<button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>';
+      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>'+(hasBot?'🧪 Тестовый режим: ты и виртуальный соперник. Бот отвечает только после твоей ошибки.':'Когда все подключатся, запускай шоу прямо отсюда.')+'</p>'+'<form id="logicRenameTeams" class="logic-team-names-form"><label>Название первой команды<input maxlength="20" minlength="2" name="team0" required value="'+esc(teamName(0))+'"></label><label>Название второй команды<input maxlength="20" minlength="2" name="team1" required value="'+esc(teamName(1))+'"></label><button type="submit" class="logic-secondary">Сохранить названия команд</button></form>'+(humans===1?'<button type="button" class="logic-secondary" data-logic-phone="test-bot">'+(hasBot?'✕ Убрать тест-бота':'🤖 Добавить тест-бота')+'</button>':'')+'<button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>';
     }
     if(phase==='question'){
       return '<div class="logic-organizer"><div class="logic-label">Управление игрой</div><button type="button" class="logic-secondary" data-logic-phone="skip">Пропустить загадку</button></div>';
@@ -34,20 +104,20 @@
     return '<div class="logic-phone-head"><strong>4PLAY · ЛОГИКА</strong><span>'+esc(C.code)+' · '+(C.online?'● Онлайн':'○ Связь')+'</span></div>';
   }
   function shell(body){root.innerHTML='<section class="screen logic-phone">'+header()+body+'</section>';}
-  function renderJoin(error=''){
-    const last=localStorage.getItem(NAME_KEY)||'';
-    shell('<div class="logic-card" style="margin:auto 0"><div class="logic-label">Вечеринка на телевизоре</div><h1>Вход в игру</h1><p>Введи имя. Других приложений устанавливать не нужно.</p><div class="logic-label">Комната '+esc(C.code)+'</div><form id="logicJoin"><input name="name" maxlength="20" autocomplete="nickname" placeholder="Твоё имя" value="'+esc(last)+'" required><button type="submit">Присоединиться →</button></form>'+(error?'<div class="logic-error">'+esc(error)+'</div>':'')+'</div><a href="./" class="logic-link">На главную 4PLAY</a>');
+  function renderJoin(error='',draftName){
+    const last=draftName??(localStorage.getItem(NAME_KEY)||'');
+    shell('<div class="logic-card" style="margin:auto 0"><div class="logic-label">Вечеринка на телевизоре</div><h1>Вход в игру</h1><p>Введи имя. Других приложений устанавливать не нужно.</p><div class="logic-label">Комната '+esc(C.code)+'</div><form id="logicJoin"><input name="name" maxlength="20" autocomplete="nickname" placeholder="Твоё имя" value="'+esc(last)+'" required>'+avatarPicker()+'<button type="submit">Присоединиться →</button></form>'+(error?'<div class="logic-error">'+esc(error)+'</div>':'')+'</div><a href="./" class="logic-link">На главную 4PLAY</a>');
   }
   function renderWaiting(){
     shell('<div class="logic-card" style="margin:auto 0;text-align:center"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>'+(C.client?'Восстанавливаем связь…':'Подключаемся…')+'</h1><p>Комната сохранена. Вернёшься в игру, как только соединение восстановится.</p></div>');
   }
   function scores(){
     const s=C.state;
-    return '<div class="logic-scoreboard"><div><small>Розовые</small><strong>'+Number(s?.scores?.[0]||0)+'</strong></div><div><small>Фиолетовые</small><strong>'+Number(s?.scores?.[1]||0)+'</strong></div></div>';
+    return '<div class="logic-scoreboard"><div><small>'+esc(teamName(0))+'</small><strong>'+Number(s?.scores?.[0]||0)+'</strong></div><div><small>'+esc(teamName(1))+'</small><strong>'+Number(s?.scores?.[1]||0)+'</strong></div></div>';
   }
   function renderLobby(){
     const p=member();
-    shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>'+(isOrganizer()?'Ты управляешь игрой. Пульт телевизора не нужен.':'Ждём, пока организатор начнёт игру.')+'</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 8'+(C.state?.testBotEnabled?' · 🧪 один настоящий + бот':'')+'</div></div>'+organizerControls('lobby')+'<div class="logic-status">Смотри на телевизор 📺</div>');
+    shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>'+(isOrganizer()?'Ты управляешь игрой. Пульт телевизора не нужен.':'Ждём, пока организатор начнёт игру.')+'</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 12'+(C.state?.testBotEnabled?' · 🧪 один настоящий + бот':'')+'</div></div>'+organizerControls('lobby')+avatarPicker()+'<div class="logic-status">Смотри на телевизор 📺</div>');
   }
   function renderQuestion(){
     const s=C.state,p=member(),blocked=s.blockedTeams?.includes(p?.team);
@@ -126,17 +196,18 @@
       render();
     }
   }
-  async function sendControl(command){
-    if(!isOrganizer()||!['start','skip','rematch','lobby','test-bot'].includes(command)||!C.channel)return;
+  async function sendControl(command,details={}){
+    if(!isOrganizer()||!['start','skip','rematch','lobby','test-bot','rename-teams'].includes(command)||!C.channel)return;
     const phase=C.state?.phase;
     if(command==='test-bot'&&(phase!=='lobby'||C.state.players.filter(p=>!p.isBot).length!==1))return;
+    if(command==='rename-teams'&&phase!=='lobby')return;
     if(command==='start' && (phase!=='lobby'||C.state.players.length<2))return;
     if(command==='skip' && phase!=='question')return;
     if((command==='rematch'||command==='lobby') && phase!=='final')return;
     const button=root.querySelector('[data-logic-phone="'+command+'"]');
     if(button)button.disabled=true;
     try{
-      await C.channel.send({type:'broadcast',event:'control',payload:{playerId:C.playerId,command}});
+      await C.channel.send({type:'broadcast',event:'control',payload:{playerId:C.playerId,command,...details}});
     }catch(e){
       console.error('Logic organizer control failed',e);
       if(button?.isConnected)button.disabled=false;
@@ -159,7 +230,7 @@
         .subscribe(async status=>{
           if(status==='SUBSCRIBED'){
             C.online=true;
-            await C.channel.track({role:'logic-player',id:C.playerId,name:C.name,joinedAt:C.joinedAt});
+            await C.channel.track({role:'logic-player',id:C.playerId,name:C.name,joinedAt:C.joinedAt,avatar:C.avatar});
             await C.channel.send({type:'broadcast',event:'hello',payload:{playerId:C.playerId}});
             render();
           }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
@@ -172,6 +243,13 @@
     }catch(e){console.error('Logic phone join',e);C.client=null;C.channel=null;renderJoin('Не удалось подключиться.');}
   }
   root.addEventListener('submit',event=>{
+    if(event.target.id==='logicRenameTeams'){
+      event.preventDefault();
+      const names=[event.target.elements.team0.value.trim(),event.target.elements.team1.value.trim()];
+      if(names.some(n=>n.length<2||n.length>20)||names[0].toLowerCase()===names[1].toLowerCase())return;
+      void sendControl('rename-teams',{names});
+      return;
+    }
     if(event.target.id==='logicAnswerForm'){
       event.preventDefault();
       void sendAnswer(event.target.elements.answer.value);
@@ -182,10 +260,20 @@
   });
   root.addEventListener('click',event=>{
     const action=event.target.closest('[data-logic-phone]')?.dataset.logicPhone;
+    const choice=event.target.closest('[data-logic-avatar]')?.dataset.logicAvatar;
+    if(choice){void setAvatar({kind:'emoji',value:choice});return;}
     if(action==='buzz')void buzz();
     if(action==='retry')void connect(C.name);
     if(['start','skip','rematch','lobby','test-bot'].includes(action))void sendControl(action);
   });
+  root.addEventListener('change',event=>{
+    const input=event.target.closest('[data-logic-photo]');
+    if(!input?.files?.[0])return;
+    void compressAvatar(input.files[0])
+      .then(setAvatar)
+      .catch(err=>{console.error('4PLAY photo error',err);alert(err.message||'Фото не удалось обработать.');});
+  });
   addEventListener('beforeunload',()=>{if(C.client&&C.channel)void C.client.removeChannel(C.channel);});
+  C.avatar=storedAvatar();
   renderJoin();
 })();
