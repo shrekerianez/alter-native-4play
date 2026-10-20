@@ -88,7 +88,19 @@
   function header(label='Логическая вечеринка'){
     return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div></header>';
   }
-  function frame(body,label){root.innerHTML='<section class="logic-tv">'+header(label)+body+'</section>'; }
+  function fitScreen(){
+    const screen=root.querySelector('.logic-tv');
+    if(!screen)return;
+    const width=Number(window.innerWidth)||1920,height=Number(window.innerHeight)||1080;
+    const scale=Math.min(width/1920,height/1080);
+    screen.style.setProperty('--logic-s',String(scale));
+    screen.style.setProperty('--logic-x',Math.max(0,(width-1920*scale)/2)+'px');
+    screen.style.setProperty('--logic-y',Math.max(0,(height-1080*scale)/2)+'px');
+  }
+  function frame(body,label){
+    root.innerHTML='<section class="logic-tv">'+header(label)+body+'</section>';
+    fitScreen();
+  }
   function renderIntro(error=''){
     frame('<main class="logic-intro"><div class="logic-label">Игровой экран · AlterNative</div><h1>А у вас есть<br>логика?</h1><p>Создаём комнату автоматически. Всё управление будет на телефонах участников.</p><div class="logic-label">Подключение к игровому серверу…</div>'+(error?'<div class="logic-error">'+esc(error)+'</div>':'')+'</main>','4PLAY Логика');
   }
@@ -117,7 +129,7 @@
     else if(s.lastResult?.testBot && !s.lastResult.correct) description='<div class="logic-buzz">🤖 Тест-бот ошибся! Твоя очередь.</div>';
     else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
     else description='<div class="logic-hint">Знаешь ответ? Нажми «ЗНАЮ!» на телефоне, затем напиши ответ.</div>';
-    const control='<div class="logic-hint">Ответы принимаются со смартфонов · управление у организатора.</div>';
+    const control='<div class="logic-hint">Думай быстро. Отгадывай первым!</div>';
     frame('<main class="logic-arena">'+scores()+'<div class="logic-stage"><div class="logic-label">Вопрос '+(s.index+1)+' из '+DATA.questions.length+' · '+esc(round?.name||'')+'</div><h1>'+esc(round?.hint||'')+'</h1>'+tiles(q)+description+'</div><div class="logic-ribbon">'+control+'</div></main>','Раунд '+(DATA.rounds.findIndex(r=>r.id===q.round)+1)+' / 4');
     tick();
   }
@@ -151,7 +163,10 @@
     if(!TV.state)return;
     const s=JSON.parse(JSON.stringify(TV.state));
     if(mutator(s)===false)return;
-    s.version=(Number(s.version)||0)+1;TV.state=s;persist();render();await broadcast();
+    s.version=(Number(s.version)||0)+1;
+    const previous=TV.state;TV.state=s;
+    window.FOURPLAY_LOGIC_AUDIO?.stateChanged(previous,s);
+    persist();render();await broadcast();
   }
   function currentPresence(){
     if(!TV.channel)return [];
@@ -223,6 +238,7 @@
     const seconds=Math.ceil(Math.max(0,Number(s.deadline||0)-Date.now())/1000);
     const node=root.querySelector('#logicClock');
     if(node){node.textContent=String(seconds);node.classList.toggle('urgent',seconds<=10);}
+    window.FOURPLAY_LOGIC_AUDIO?.countdown(seconds,s.index+':'+(s.buzz?.attemptId||''));
     if(seconds<=0){
       clearInterval(TV.timer);TV.timer=null;
       if(s.buzz)void expireAnswer(s.buzz.attemptId);
@@ -304,6 +320,15 @@
     const online=TV.people.some(p=>p.id===id);
     if(!s||!id||!online||id!==s.controllerId||!s.players.some(p=>p.id===id))return;
     switch(payload?.command){
+      case 'sound': {
+        const volume=Number(payload?.volume);
+        if(!Number.isFinite(volume))return;
+        await change(next=>{next.sound={
+          enabled:payload.enabled!==false,
+          volume:Math.round(Math.max(0,Math.min(1,volume))*10)/10
+        };});
+        break;
+      }
       case 'rename-teams':
         if(s.phase==='lobby'){
           const names=Array.isArray(payload?.names)?payload.names.map(cleanTeam):[];
@@ -329,8 +354,9 @@
     if(!configured())return renderIntro('Сначала нужно настроить Supabase Realtime.');
     TV.busy=true;TV.code=TV.code||code();
     history.replaceState(null,'','./?logic-tv='+encodeURIComponent(TV.code));
-    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0,testBotEnabled:false,teamNames:[...DEFAULT_TEAMS]};
+    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0,testBotEnabled:false,teamNames:[...DEFAULT_TEAMS],sound:{enabled:true,volume:.45}};
     if(TV.state.phase==='reveal'&&!TV.state.revealEndsAt) TV.state.revealEndsAt=Date.now()+REVEAL_MS;
+    window.FOURPLAY_LOGIC_AUDIO?.stateChanged(null,TV.state);
     persist();render();
     try{
       const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
@@ -378,6 +404,7 @@
     }catch{if(node.isConnected)node.textContent=TV.code;}
   }
   addEventListener('beforeunload',()=>{clearTimeout(TV.presenceTimer);clearTimeout(TV.botTimer);clearInterval(TV.timer);if(TV.client&&TV.channel)void TV.client.removeChannel(TV.channel);});
+  addEventListener('resize',fitScreen);
   renderIntro();
   void createRoom();
 })();
