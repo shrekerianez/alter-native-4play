@@ -12,6 +12,9 @@
   const REVEAL_MS=7500;
   const TEST_BOT_ID='logic-test-bot';
   const BOT_RESPONSE_DELAY_MS=2800;
+  const MAX_PLAYERS=12;
+  const DEFAULT_TEAMS=['Розовые','Фиолетовые'];
+  const FUN_AVATARS=['🦄','🤡','👽','🦖','🦊','🐸','🐷','🐵','🦝','🤠','🥸','🤖','👻','🐼','😈','🦩','🦀','🍕','🧟','🐙'];
   function uuid(){return crypto.randomUUID ? crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2);}
   function clean(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);}
   function code(){const b=new Uint8Array(5);crypto.getRandomValues(b);return Array.from(b,x=>alphabet[x%alphabet.length]).join('');}
@@ -19,7 +22,23 @@
   function config(){const c=window.FOURPLAY_SUPABASE||{};return {url:String(c.url||''),key:String(c.key||'')};}
   function configured(){const c=config();return /^https:\/\/.+\.supabase\.co$/i.test(c.url)&&c.key.length>20;}
   function question(){return DATA.questions[TV.state?.index||0];}
-  function teamName(i){return i===0?'Розовые':'Фиолетовые';}
+  function teamName(i){return TV.state?.teamNames?.[i]||DEFAULT_TEAMS[i];}
+  function cleanTeam(value){
+    return String(value||'').replace(/[<>\\u0000-\\u001F]/g,'').trim().slice(0,20);
+  }
+  function safeAvatar(raw){
+    if(raw?.kind==='emoji'&&FUN_AVATARS.includes(raw.value))return {kind:'emoji',value:raw.value};
+    if(raw?.kind==='photo'&&typeof raw.value==='string'
+      &&raw.value.length<=22000&&/^data:image\\/jpeg;base64,[a-z0-9+/=]+$/i.test(raw.value))
+      return {kind:'photo',value:raw.value};
+    return {kind:'emoji',value:'🥸'};
+  }
+  function avatarMarkup(p){
+    const av=safeAvatar(p.avatar);
+    return av.kind==='photo'
+      ?'<img class="logic-player-avatar" src="'+esc(av.value)+'" alt="" loading="lazy">'
+      :'<span class="logic-player-avatar" aria-hidden="true">'+av.value+'</span>';
+  }
   function members(i){return (TV.state?.players||[]).filter(p=>p.team===i);}
   function testBotEnabled(state=TV.state){
     return !!state?.testBotEnabled && (state.players||[]).some(p=>p.id===TEST_BOT_ID);
@@ -73,11 +92,11 @@
   }
   function playerList(team){
     const a=(TV.state?.players||[]).filter(p=>p.team===team);
-    return a.length?a.map(p=>'<span class="logic-player-tag">'+(p.id===TEST_BOT_ID?'🤖 ':'')+esc(p.name)+'</span>').join(''):'<div class="logic-hint">Ожидаем игроков…</div>';
+    return a.length?a.map(p=>'<span class="logic-player-tag">'+avatarMarkup(p)+'<span class="logic-player-name">'+esc(p.name)+'</span></span>').join(''):'<div class="logic-hint">Ожидаем игроков…</div>';
   }
   function renderLobby(){
     const count=TV.state?.players?.length||0;
-    frame('<main class="logic-lobby"><div class="logic-panel"><div class="logic-label">Комната для 2–8 игроков</div><div class="logic-code">'+esc(TV.code)+'</div><p class="logic-hint">'+count+' из 8 игроков'+(testBotEnabled()?' · 🧪 тестовый бот':'')+' · команды формируются автоматически</p><div class="logic-players"><div class="logic-team"><h3>● '+teamName(0)+'</h3>'+playerList(0)+'</div><div class="logic-team"><h3>● '+teamName(1)+'</h3>'+playerList(1)+'</div></div><div class="logic-row" style="margin-top:30px"><div class="logic-hint">'+(count<2?'Ждём минимум двух игроков…':'Организатор запускает шоу на своём смартфоне')+'</div></div></div><div class="logic-panel"><div id="logicQr" class="logic-qr" aria-label="QR код комнаты">'+esc(TV.code)+'</div><p class="logic-hint">Сканируйте QR камерой телефона<br>или введите код комнаты.</p><div class="logic-label">'+esc(location.origin+location.pathname)+'</div></div></main>','Игроки и команды');
+    frame('<main class="logic-lobby"><div class="logic-panel"><div class="logic-label">Комната для 2–12 игроков</div><div class="logic-code">'+esc(TV.code)+'</div><p class="logic-hint">'+count+' из '+MAX_PLAYERS+' игроков'+(testBotEnabled()?' · 🧪 тестовый бот':'')+' · команды формируются автоматически</p><div class="logic-players"><div class="logic-team"><h3>● '+esc(teamName(0))+'</h3>'+playerList(0)+'</div><div class="logic-team"><h3>● '+esc(teamName(1))+'</h3>'+playerList(1)+'</div></div><div class="logic-row" style="margin-top:30px"><div class="logic-hint">'+(count<2?'Ждём минимум двух игроков…':'Организатор запускает шоу на своём смартфоне')+'</div></div></div><div class="logic-panel"><div id="logicQr" class="logic-qr" aria-label="QR код комнаты">'+esc(TV.code)+'</div><p class="logic-hint">Сканируйте QR камерой телефона<br>или введите код комнаты.</p><div class="logic-label">'+esc(location.origin+location.pathname)+'</div></div></main>','Игроки и команды');
     renderQr();
   }
   function tiles(q){
@@ -85,13 +104,13 @@
     return '<div class="logic-tiles">'+q.tiles.map((tile,i)=> (i&&q.round==='formula'||i&&q.round==='movie' ? '<span class="logic-plus">+</span>':'')+'<div class="logic-tile"><small>'+String(i+1)+'</small><span>'+esc(tile)+'</span></div>').join('')+'</div>';
   }
   function scores(){
-    return '<div class="logic-topline"><div class="logic-score"><small>Розовые</small><strong>'+Number(TV.state?.scores?.[0]||0)+'</strong></div><div id="logicClock" class="logic-clock">45</div><div class="logic-score"><small>Фиолетовые</small><strong>'+Number(TV.state?.scores?.[1]||0)+'</strong></div></div>';
+    return '<div class="logic-topline"><div class="logic-score"><small>'+esc(teamName(0))+'</small><strong>'+Number(TV.state?.scores?.[0]||0)+'</strong></div><div id="logicClock" class="logic-clock">45</div><div class="logic-score"><small>'+esc(teamName(1))+'</small><strong>'+Number(TV.state?.scores?.[1]||0)+'</strong></div></div>';
   }
   function renderQuestion(){
     const q=question(), s=TV.state, round=DATA.rounds.find(r=>r.id===q?.round);
     const person=s?.buzz && s.players.find(p=>p.id===s.buzz.playerId);
     let description;
-    if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+teamName(s.buzz.team)+' · вводит ответ на смартфоне</div>';
+    if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+esc(teamName(s.buzz.team))+' · вводит ответ на смартфоне</div>';
     else if(shouldTestBotReply(s)) description='<div class="logic-buzz">🤖 Тест-бот думает…</div>';
     else if(s.lastResult?.testBot && !s.lastResult.correct) description='<div class="logic-buzz">🤖 Тест-бот ошибся! Твоя очередь.</div>';
     else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
@@ -107,7 +126,7 @@
   }
   function renderFinal(){
     const scores=TV.state.scores;
-    const winner=scores[0]===scores[1]?'Ничья!':teamName(scores[0]>scores[1]?0:1)+' победили!';
+    const winner=scores[0]===scores[1]?'Ничья!':esc(teamName(scores[0]>scores[1]?0:1))+' победили!';
     frame('<main class="logic-final"><div class="logic-label">Финал вечеринки</div><h1>🏆 '+esc(winner)+'</h1><div class="logic-code">'+scores[0]+' : '+scores[1]+'</div><p class="logic-hint">Спасибо за игру! Готовы ещё немного напрячь извилины?</p><div class="logic-hint">Организатор выбирает реванш или возврат в лобби на своём смартфоне.</div></main>','Результаты');
   }
   function render(){
@@ -134,8 +153,8 @@
     if(!TV.channel)return [];
     const values=Object.values(TV.channel.presenceState()).flat().filter(p=>p?.role==='logic-player'&&p.id);
     const seen=new Map();
-    for(const p of values)if(!seen.has(p.id))seen.set(p.id,{id:String(p.id),name:String(p.name||'Игрок').slice(0,20),joinedAt:Number(p.joinedAt)||Date.now()});
-    return [...seen.values()].sort((a,b)=>a.joinedAt-b.joinedAt||a.id.localeCompare(b.id)).slice(0,8);
+    for(const p of values)if(!seen.has(p.id))seen.set(p.id,{id:String(p.id),name:String(p.name||'Игрок').slice(0,20),joinedAt:Number(p.joinedAt)||Date.now(),avatar:safeAvatar(p.avatar)});
+    return [...seen.values()].sort((a,b)=>a.joinedAt-b.joinedAt||a.id.localeCompare(b.id)).slice(0,MAX_PLAYERS);
   }
   async function presence(){
     if(!TV.state||!TV.online)return;
@@ -174,7 +193,7 @@
       return {...p,team};
     });
     if(!testBot&&Math.abs(n[0]-n[1])>1)players.forEach((p,i)=>p.team=i%2);
-    if(testBot)players.push({id:TEST_BOT_ID,name:'Тест-бот',team:1,isBot:true});
+    if(testBot)players.push({id:TEST_BOT_ID,name:'Тест-бот',team:1,isBot:true,avatar:{kind:'emoji',value:'🤖'}});
     const controllerId=humans[0]?.id||'';
     if(JSON.stringify(players)===JSON.stringify(TV.state.players)
       &&controllerId===TV.state.controllerId
@@ -281,6 +300,14 @@
     const online=TV.people.some(p=>p.id===id);
     if(!s||!id||!online||id!==s.controllerId||!s.players.some(p=>p.id===id))return;
     switch(payload?.command){
+      case 'rename-teams':
+        if(s.phase==='lobby'){
+          const names=Array.isArray(payload?.names)?payload.names.map(cleanTeam):[];
+          if(names.length!==2||!names.every(n=>n.length>=2))return;
+          if(names[0].toLocaleLowerCase('ru-RU')===names[1].toLocaleLowerCase('ru-RU'))return;
+          await change(next=>{next.teamNames=[names[0],names[1]];});
+        }
+        break;
       case 'test-bot':
         if(s.phase==='lobby'&&TV.people.length===1){
           await change(next=>{next.testBotEnabled=!next.testBotEnabled;});
@@ -298,7 +325,7 @@
     if(!configured())return renderIntro('Сначала нужно настроить Supabase Realtime.');
     TV.busy=true;TV.code=TV.code||code();
     history.replaceState(null,'','./?logic-tv='+encodeURIComponent(TV.code));
-    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0,testBotEnabled:false};
+    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0,testBotEnabled:false,teamNames:[...DEFAULT_TEAMS]};
     if(TV.state.phase==='reveal'&&!TV.state.revealEndsAt) TV.state.revealEndsAt=Date.now()+REVEAL_MS;
     persist();render();
     try{
