@@ -28,29 +28,39 @@
     if(!state||state.phase!=='question'||state.buzz||!testBotEnabled(state))return false;
     const bot=state.players.find(p=>p.id===TEST_BOT_ID);
     const human=state.players.find(p=>p.id!==TEST_BOT_ID);
-    return !!human && !!bot && state.blockedTeams?.includes(human.team)
-      && !state.blockedTeams.includes(bot.team)
-      && Date.now()<state.deadline;
+    return !!human&&!!bot&&!state.blockedTeams?.includes(bot.team)&&Date.now()<state.deadline;
   }
   function queueBotReply(){
     clearTimeout(TV.botTimer);TV.botTimer=null;
     if(!shouldTestBotReply())return;
     const atIndex=TV.state.index;
+    const human=TV.state.players.find(p=>p.id!==TEST_BOT_ID);
+    const humanMissed=TV.state.blockedTeams?.includes(human.team);
+    // Give the human 25 seconds to press KNOW before the bot tries on its own.
+    // After a human miss, bot answers within about three seconds.
+    const delay=humanMissed?BOT_RESPONSE_DELAY_MS:Math.max(0,TV.state.deadline-20000-Date.now());
     TV.botTimer=setTimeout(async()=>{
       TV.botTimer=null;
       if(!shouldTestBotReply()||TV.state.index!==atIndex)return;
       await change(state=>{
         if(!shouldTestBotReply(state)||state.index!==atIndex)return false;
         const bot=state.players.find(p=>p.id===TEST_BOT_ID);
+        const opponent=state.players.find(p=>p.id!==TEST_BOT_ID);
+        const humanAlreadyMissed=state.blockedTeams.includes(opponent.team);
         const correct=state.index%2===0;
         state.lastResult={playerId:TEST_BOT_ID,correct,typo:false,expired:false,testBot:true};
         state.deadline=0;
         if(correct)state.scores[bot.team]+=1;
         else state.blockedTeams.push(bot.team);
-        state.phase='reveal';
-        state.revealEndsAt=Date.now()+REVEAL_MS;
+        if(correct||humanAlreadyMissed){
+          state.phase='reveal';
+          state.revealEndsAt=Date.now()+REVEAL_MS;
+        } else {
+          // Bot missed first: let the human try for 20 seconds.
+          state.deadline=Date.now()+20000;
+        }
       });
-    },BOT_RESPONSE_DELAY_MS);
+    },delay);
   }
   function persist(){try{if(TV.code&&TV.state)sessionStorage.setItem('4play.logic.tv.'+TV.code,JSON.stringify(TV.state));}catch{}}
   function readSaved(){try{const s=JSON.parse(sessionStorage.getItem('4play.logic.tv.'+TV.code)||'null');return s?.gameId==='logic'&&s.code===TV.code?s:null;}catch{return null;}}
@@ -83,6 +93,7 @@
     let description;
     if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+teamName(s.buzz.team)+' · вводит ответ на смартфоне</div>';
     else if(shouldTestBotReply(s)) description='<div class="logic-buzz">🤖 Тест-бот думает…</div>';
+    else if(s.lastResult?.testBot && !s.lastResult.correct) description='<div class="logic-buzz">🤖 Тест-бот ошибся! Твоя очередь.</div>';
     else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
     else description='<div class="logic-hint">Знаешь ответ? Нажми «ЗНАЮ!» на телефоне, затем напиши ответ.</div>';
     const control='<div class="logic-hint">Ответы принимаются со смартфонов · управление у организатора.</div>';
