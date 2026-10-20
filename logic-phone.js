@@ -86,19 +86,27 @@
   function isOrganizer(){
     return !!member() && !!C.state?.controllerId && C.state.controllerId===C.playerId;
   }
+  function soundPanel(){
+    const opts=C.state?.sound||{enabled:true,volume:.45};
+    const enabled=opts.enabled!==false,amount=Math.round(Math.max(0,Math.min(1,Number(opts.volume)||0))*100);
+    return '<div class="logic-audio-controls"><div class="logic-label">Музыка и эффекты · '+(enabled?amount+'%':'выключено')+'</div>'
+      +'<div class="logic-audio-buttons"><button type="button" data-logic-phone="sound-toggle">'+(enabled?'🔊 Выключить':'🔇 Включить')+'</button>'
+      +'<button type="button" data-logic-phone="sound-down">− Тише</button>'
+      +'<button type="button" data-logic-phone="sound-up">+ Громче</button></div></div>';
+  }
   function organizerControls(phase){
     if(!isOrganizer())return '';
     const n=C.state.players?.length||0;
     const humans=C.state.players?.filter(p=>!p.isBot).length||0;
     const hasBot=!!C.state.testBotEnabled && C.state.players.some(p=>p.isBot);
     if(phase==='lobby'){
-      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>'+(hasBot?'🧪 Тестовый режим: ты и виртуальный соперник. Бот отвечает только после твоей ошибки.':'Когда все подключатся, запускай шоу прямо отсюда.')+'</p>'+'<form id="logicRenameTeams" class="logic-team-names-form"><label>Название первой команды<input maxlength="20" minlength="2" name="team0" required value="'+esc(teamName(0))+'"></label><label>Название второй команды<input maxlength="20" minlength="2" name="team1" required value="'+esc(teamName(1))+'"></label><button type="submit" class="logic-secondary">Сохранить названия команд</button></form>'+(humans===1?'<button type="button" class="logic-secondary" data-logic-phone="test-bot">'+(hasBot?'✕ Убрать тест-бота':'🤖 Добавить тест-бота')+'</button>':'')+'<button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>';
+      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>'+(hasBot?'🧪 Тестовый режим: ты и виртуальный соперник. Бот отвечает только после твоей ошибки.':'Когда все подключатся, запускай шоу прямо отсюда.')+'</p>'+'<form id="logicRenameTeams" class="logic-team-names-form"><label>Название первой команды<input maxlength="20" minlength="2" name="team0" required value="'+esc(teamName(0))+'"></label><label>Название второй команды<input maxlength="20" minlength="2" name="team1" required value="'+esc(teamName(1))+'"></label><button type="submit" class="logic-secondary">Сохранить названия команд</button></form>'+(humans===1?'<button type="button" class="logic-secondary" data-logic-phone="test-bot">'+(hasBot?'✕ Убрать тест-бота':'🤖 Добавить тест-бота')+'</button>':'')+'<button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>'+soundPanel();
     }
     if(phase==='question'){
-      return '<div class="logic-organizer"><div class="logic-label">Управление игрой</div><button type="button" class="logic-secondary" data-logic-phone="skip">Пропустить загадку</button></div>';
+      return '<div class="logic-organizer"><div class="logic-label">Управление игрой</div><button type="button" class="logic-secondary" data-logic-phone="skip">Пропустить загадку</button></div>'+soundPanel();
     }
     if(phase==='final'){
-      return '<div class="logic-organizer"><div class="logic-label">Управление вечеринкой</div><button type="button" data-logic-phone="rematch">↻ Реванш</button><button type="button" class="logic-secondary" data-logic-phone="lobby">В лобби</button></div>';
+      return '<div class="logic-organizer"><div class="logic-label">Управление вечеринкой</div><button type="button" data-logic-phone="rematch">↻ Реванш</button><button type="button" class="logic-secondary" data-logic-phone="lobby">В лобби</button></div>'+soundPanel();
     }
     return '';
   }
@@ -202,8 +210,17 @@
       render();
     }
   }
+  async function sendSound(action){
+    if(!isOrganizer())return;
+    const raw=C.state.sound||{enabled:true,volume:.45};
+    const enabled=raw.enabled!==false,volume=Number(raw.volume)||0;
+    const option=action==='sound-toggle'
+      ?{enabled:!enabled,volume:volume||.45}
+      :{enabled:true,volume:Math.max(0,Math.min(1,volume+(action==='sound-up'?.1:-.1)))};
+    await sendControl('sound',option);
+  }
   async function sendControl(command,details={}){
-    if(!isOrganizer()||!['start','skip','rematch','lobby','test-bot','rename-teams'].includes(command)||!C.channel)return;
+    if(!isOrganizer()||!['start','skip','rematch','lobby','test-bot','rename-teams','sound'].includes(command)||!C.channel)return;
     const phase=C.state?.phase;
     if(command==='test-bot'&&(phase!=='lobby'||C.state.players.filter(p=>!p.isBot).length!==1))return;
     if(command==='rename-teams'&&phase!=='lobby')return;
@@ -271,6 +288,7 @@
     if(action==='buzz')void buzz();
     if(action==='retry')void connect(C.name);
     if(['start','skip','rematch','lobby','test-bot'].includes(action))void sendControl(action);
+    if(['sound-toggle','sound-up','sound-down'].includes(action))void sendSound(action);
   });
   root.addEventListener('change',event=>{
     const input=event.target.closest('[data-logic-photo]');
