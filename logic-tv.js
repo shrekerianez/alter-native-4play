@@ -8,7 +8,7 @@
   document.body.classList.add('logic-tv-mode');
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const TV = {code:clean(params.get('logic-tv')), client:null,channel:null,online:false,
-    people:[], state:null,timer:null,botTimer:null,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false};
+    people:[], state:null,timer:null,botTimer:null,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false,everConnected:false};
   const REVEAL_MS=7500;
   const TEST_BOT_ID='logic-test-bot';
   const BOT_RESPONSE_DELAY_MS=2800;
@@ -55,7 +55,7 @@
   function persist(){try{if(TV.code&&TV.state)sessionStorage.setItem('4play.logic.tv.'+TV.code,JSON.stringify(TV.state));}catch{}}
   function readSaved(){try{const s=JSON.parse(sessionStorage.getItem('4play.logic.tv.'+TV.code)||'null');return s?.gameId==='logic'&&s.code===TV.code?s:null;}catch{return null;}}
   function header(label='Логическая вечеринка'){
-    return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div><div class="logic-row"><span class="logic-label">'+(TV.online?'● Онлайн':'○ Подключение')+'</span><span class="logic-label">Управление со смартфонов</span></div></header>';
+    return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div><div class="logic-row"><span class="logic-label">'+(TV.online?'● Онлайн':TV.everConnected?'○ Восстанавливаем связь':'○ Подключение')+'</span><span class="logic-label">Управление со смартфонов</span></div></header>';
   }
   function frame(body,label){root.innerHTML='<section class="logic-tv">'+header(label)+body+'</section>'; }
   function renderIntro(error=''){
@@ -284,8 +284,20 @@
         .on('broadcast',{event:'answer'},({payload})=>void submitAnswer(payload))
         .on('broadcast',{event:'control'},({payload})=>void handleControl(payload))
         .subscribe(async status=>{
-          if(status==='SUBSCRIBED'){TV.online=true;render();await broadcast();await presence();}
-          if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){TV.online=false;renderIntro('Не удалось подключиться к комнате. Проверь интернет.');}
+          if(status==='SUBSCRIBED'){
+            TV.online=true;
+            TV.everConnected=true;
+            render();
+            await broadcast();
+            await presence();
+          }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
+            // Realtime can briefly time out while its socket is reconnecting.
+            // Never discard an already-created room, QR or match state.
+            console.warn('4PLAY Logic: временный сбой Realtime:',status);
+            TV.online=false;
+            render();
+            // Supabase Realtime automatically schedules channel rejoin.
+          }
         });
     }catch(e){console.error('Logic host',e);renderIntro('Не удалось запустить комнату.');}
     finally{TV.busy=false;}
