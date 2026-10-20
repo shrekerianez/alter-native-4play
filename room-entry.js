@@ -53,7 +53,7 @@
           <p id="logicCodeError" class="error" role="alert"></p>
         </form>
       </section>`;
-    root.querySelector('[name="code"]')?.focus({preventScroll:true});
+    // Don't pop up the keyboard over the primary QR camera button.
   }
 
   function enhanceHome() {
@@ -97,7 +97,11 @@
     if (event.target.closest('[data-room-launch]')) openRoom();
     if (event.target.closest('[data-logic-launch]')) openLogicEntry();
     if (event.target.closest('[data-logic-scan]')) {
-      if(!window.FOURPLAY_QR_SCANNER){openLogicEntry();return;}
+      if(!window.FOURPLAY_QR_SCANNER){
+        const message=root.querySelector('#logicCodeError');
+        if(message)message.textContent='Сканер недоступен. Введи код комнаты вручную.';
+        return;
+      }
       void window.FOURPLAY_QR_SCANNER.open({onResult: code=>{
         const url=new URL(location.href);url.search='';url.searchParams.set('logic-room',code);
         location.href=url.toString();
