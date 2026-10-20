@@ -112,3 +112,12 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 .logic-phone .logic-team-names-form button{min-height:53px;font-size:16px;padding:12px}
 @media(min-width:1200px){.logic-lobby .logic-player-tag{margin:4px 3px}.logic-lobby .logic-panel:first-child{padding:clamp(22px,2vw,35px)}}
 @media(max-height:750px) and (min-width:861px){.logic-lobby .logic-code{font-size:clamp(55px,6vw,102px)}.logic-lobby .logic-player-avatar{width:32px;height:32px;font-size:20px}.logic-lobby .logic-player-tag{padding:3px 9px 3px 3px}}
+
+/* TV show portraits: the answering player and final winners. */
+.logic-answering-person{display:inline-flex;justify-content:center;align-items:center;gap:13px}
+.logic-answering-person .logic-player-avatar{width:clamp(45px,4.2vw,75px);height:clamp(45px,4.2vw,75px);font-size:clamp(27px,3vw,46px);box-shadow:0 0 0 3px rgba(255,255,255,.18)}
+.logic-winner-portraits{width:min(95%,1000px);display:flex;gap:14px;justify-content:center;flex-wrap:wrap;align-items:flex-start}
+.logic-winner-player{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:85px;max-width:135px;font-weight:800;font-size:clamp(14px,1.3vw,20px);overflow-wrap:anywhere}
+.logic-winner-player .logic-player-avatar{width:clamp(55px,5vw,92px);height:clamp(55px,5vw,92px);border:3px solid rgba(255,255,255,.4);font-size:clamp(32px,3.6vw,58px)}
+.logic-winner-player span:last-child{text-align:center}
+@media(max-height:700px){.logic-winner-player{gap:4px}.logic-winner-player .logic-player-avatar{width:53px;height:53px;font-size:28px}}
