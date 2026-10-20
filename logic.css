@@ -86,3 +86,29 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 .logic-phone .logic-organizer p{font-size:15px;color:#d2c6df}
 .logic-phone .logic-organizer button{background:linear-gradient(135deg,#a85bfb,#f6538b);color:#fff;min-height:62px}
 .logic-phone .logic-organizer button.logic-secondary{background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.25);color:#fff}
+
+/* 12-player lobby: expressive circular portraits that remain legible on a TV. */
+.logic-player-tag{max-width:100%;min-width:0;display:inline-flex;gap:8px;align-items:center;overflow:hidden;padding:5px 11px 5px 5px;font-size:clamp(13px,1.05vw,18px)}
+.logic-player-avatar{width:clamp(30px,3vw,47px);height:clamp(30px,3vw,47px);min-width:30px;border-radius:50%;display:grid;place-items:center;object-fit:cover;background:linear-gradient(135deg,#f66ab5,#8652eb);font-size:clamp(20px,2vw,31px);overflow:hidden}
+.logic-player-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:clamp(75px,8vw,150px);font-weight:800}
+.logic-lobby .logic-players{gap:12px}
+.logic-lobby .logic-team{min-width:0;padding:clamp(14px,1.6vw,23px)}
+.logic-lobby .logic-team h3{overflow-wrap:anywhere;font-size:clamp(18px,1.45vw,25px)}
+/* Colorful free avatars and compact camera/gallery actions on any smartphone. */
+.logic-phone .logic-avatar-picker{margin:16px 0;display:flex;flex-direction:column;gap:13px;padding:16px;border-radius:24px;background:rgba(255,255,255,.065);border:1px solid rgba(255,255,255,.12)}
+.logic-phone .logic-avatar-preview{display:flex;gap:13px;align-items:center;color:#cfc2db;font-size:14px;font-weight:600}
+.logic-phone .logic-person-avatar{width:66px;height:66px;flex:0 0 66px;border-radius:50%;display:grid;place-items:center;object-fit:cover;background:linear-gradient(145deg,#f7788d,#8054ef);font-size:40px;box-shadow:0 3px 18px rgba(162,80,231,.25)}
+.logic-phone .logic-avatar-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.logic-phone button.logic-avatar-option{min-width:0;min-height:0;aspect-ratio:1;padding:3px;border:2px solid transparent;border-radius:18px;background:rgba(255,255,255,.10);font-size:clamp(23px,8vw,32px);line-height:1}
+.logic-phone button.logic-avatar-option.selected{border-color:#f7afec;background:rgba(188,107,251,.35);box-shadow:0 0 0 2px rgba(255,255,255,.09)}
+.logic-phone button.logic-avatar-option:focus-visible{outline:3px solid white;outline-offset:2px}
+.logic-phone .logic-avatar-photo-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.logic-phone .logic-avatar-photo-actions label{display:flex;align-items:center;justify-content:center;padding:12px 6px;min-height:52px;font-size:14px;font-weight:800;text-align:center;color:#fff;border-radius:16px;border:1px solid rgba(255,255,255,.20);background:rgba(255,255,255,.11);cursor:pointer}
+.logic-phone .logic-avatar-photo-actions label:active{opacity:.75}
+.logic-phone .logic-file-input{display:none}
+.logic-phone .logic-team-names-form{display:flex;flex-direction:column;gap:11px;padding:14px 0;border-block:1px solid rgba(255,255,255,.13)}
+.logic-phone .logic-team-names-form label{display:flex;flex-direction:column;gap:6px;font-size:14px;font-weight:700;color:#d8cce6}
+.logic-phone .logic-team-names-form input{font-size:17px;min-height:50px;padding:11px 14px;border-radius:14px}
+.logic-phone .logic-team-names-form button{min-height:53px;font-size:16px;padding:12px}
+@media(min-width:1200px){.logic-lobby .logic-player-tag{margin:4px 3px}.logic-lobby .logic-panel:first-child{padding:clamp(22px,2vw,35px)}}
+@media(max-height:750px) and (min-width:861px){.logic-lobby .logic-code{font-size:clamp(55px,6vw,102px)}.logic-lobby .logic-player-avatar{width:32px;height:32px;font-size:20px}.logic-lobby .logic-player-tag{padding:3px 9px 3px 3px}}
