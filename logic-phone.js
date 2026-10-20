@@ -17,8 +17,10 @@
   function organizerControls(phase){
     if(!isOrganizer())return '';
     const n=C.state.players?.length||0;
+    const humans=C.state.players?.filter(p=>!p.isBot).length||0;
+    const hasBot=!!C.state.testBotEnabled && C.state.players.some(p=>p.isBot);
     if(phase==='lobby'){
-      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>Когда все подключатся, запускай шоу прямо отсюда.</p><button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>';
+      return '<div class="logic-organizer"><div class="logic-label">Ты организатор вечеринки</div><p>'+(hasBot?'🧪 Тестовый режим: ты и виртуальный соперник. Бот отвечает только после твоей ошибки.':'Когда все подключатся, запускай шоу прямо отсюда.')+'</p>'+(humans===1?'<button type="button" class="logic-secondary" data-logic-phone="test-bot">'+(hasBot?'✕ Убрать тест-бота':'🤖 Добавить тест-бота')+'</button>':'')+'<button type="button" data-logic-phone="start" '+(n<2?'disabled':'')+'>▶ Начать шоу'+(n<2?' · ждём второго игрока':'')+'</button></div>';
     }
     if(phase==='question'){
       return '<div class="logic-organizer"><div class="logic-label">Управление игрой</div><button type="button" class="logic-secondary" data-logic-phone="skip">Пропустить загадку</button></div>';
@@ -45,7 +47,7 @@
   }
   function renderLobby(){
     const p=member();
-    shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>'+(isOrganizer()?'Ты управляешь игрой. Пульт телевизора не нужен.':'Ждём, пока организатор начнёт игру.')+'</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 8</div></div>'+organizerControls('lobby')+'<div class="logic-status">Смотри на телевизор 📺</div>');
+    shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>'+(isOrganizer()?'Ты управляешь игрой. Пульт телевизора не нужен.':'Ждём, пока организатор начнёт игру.')+'</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 8'+(C.state?.testBotEnabled?' · 🧪 один настоящий + бот':'')+'</div></div>'+organizerControls('lobby')+'<div class="logic-status">Смотри на телевизор 📺</div>');
   }
   function renderQuestion(){
     const s=C.state,p=member(),blocked=s.blockedTeams?.includes(p?.team);
@@ -56,7 +58,7 @@
     let description='Твоя команда: '+(p?teamName(p.team):'ожидание');
     if(blocked)description='Ваша команда уже использовала попытку';
     if(somebody)description=ownTurn?(sent?'Ответ отправлен. Проверяем…':'Твой ход! Напиши ответ.'):'Отвечает '+esc(s.players.find(x=>x.id===s.buzz.playerId)?.name||'игрок');
-    if(!somebody&&s.lastResult&&!s.lastResult.correct)description='Предыдущий ответ неверный. Ход переходит другой команде.';
+    if(!somebody&&s.lastResult&&!s.lastResult.correct)description=s.testBotEnabled?'Неверный ответ. 🤖 Тест-бот сейчас ответит.':'Предыдущий ответ неверный. Ход переходит другой команде.';
     let controls='';
     if(ownTurn&&!sent){
       controls='<form id="logicAnswerForm" class="logic-answer-form"><label for="logicAnswerInput" class="logic-label">Твой ответ</label><input id="logicAnswerInput" name="answer" type="text" maxlength="70" minlength="1" autocomplete="off" autocapitalize="sentences" enterkeyhint="send" placeholder="Напиши разгадку…" required><button class="logic-send" type="submit">Отправить ответ →</button><p>Пиши как знаешь: небольшие опечатки допускаются. Кнопка «Отправить» сразу остановит таймер на TV.</p></form>';
@@ -71,7 +73,9 @@
   }
   function renderReveal(){
     const q=window.FOURPLAY_LOGIC_DATA?.questions[C.state.index];
-    shell('<div class="logic-card" style="margin-top:30px;text-align:center"><div class="logic-label">Правильный ответ</div><h1>'+esc(q?.answer||'Разгадка на TV')+'</h1><p>'+esc(q?.explain||'')+'</p>'+scores()+'</div><div class="logic-status">Следующий вопрос появится автоматически через несколько секунд.</div>');
+    const result=C.state?.lastResult;
+    const botMessage=result?.testBot?'<p class="logic-bot-result">🤖 Тест-бот: '+(result.correct?'ответил правильно (+1)':'ошибся (0 очков)')+'</p>':'';
+    shell('<div class="logic-card" style="margin-top:30px;text-align:center"><div class="logic-label">Правильный ответ</div><h1>'+esc(q?.answer||'Разгадка на TV')+'</h1><p>'+esc(q?.explain||'')+'</p>'+botMessage+scores()+'</div><div class="logic-status">Следующий вопрос появится автоматически через несколько секунд.</div>');
   }
   function renderFinal(){
     const s=C.state;
@@ -123,8 +127,9 @@
     }
   }
   async function sendControl(command){
-    if(!isOrganizer()||!['start','skip','rematch','lobby'].includes(command)||!C.channel)return;
+    if(!isOrganizer()||!['start','skip','rematch','lobby','test-bot'].includes(command)||!C.channel)return;
     const phase=C.state?.phase;
+    if(command==='test-bot'&&(phase!=='lobby'||C.state.players.filter(p=>!p.isBot).length!==1))return;
     if(command==='start' && (phase!=='lobby'||C.state.players.length<2))return;
     if(command==='skip' && phase!=='question')return;
     if((command==='rematch'||command==='lobby') && phase!=='final')return;
@@ -177,7 +182,7 @@
     const action=event.target.closest('[data-logic-phone]')?.dataset.logicPhone;
     if(action==='buzz')void buzz();
     if(action==='retry')void connect(C.name);
-    if(['start','skip','rematch','lobby'].includes(action))void sendControl(action);
+    if(['start','skip','rematch','lobby','test-bot'].includes(action))void sendControl(action);
   });
   addEventListener('beforeunload',()=>{if(C.client&&C.channel)void C.client.removeChannel(C.channel);});
   renderJoin();
