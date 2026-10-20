@@ -8,7 +8,7 @@
   document.body.classList.add('logic-tv-mode');
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const TV = {code:clean(params.get('logic-tv')), client:null,channel:null,online:false,
-    people:[], state:null,timer:null,botTimer:null,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false,everConnected:false};
+    people:[], state:null,timer:null,botTimer:null,presenceTimer:null,emptyPresenceSince:0,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false,everConnected:false};
   const REVEAL_MS=7500;
   const TEST_BOT_ID='logic-test-bot';
   const BOT_RESPONSE_DELAY_MS=2800;
@@ -138,8 +138,24 @@
     return [...seen.values()].sort((a,b)=>a.joinedAt-b.joinedAt||a.id.localeCompare(b.id)).slice(0,8);
   }
   async function presence(){
-    TV.people=currentPresence();
-    if(!TV.state)return;
+    if(!TV.state||!TV.online)return;
+    const onlinePlayers=currentPresence();
+    // On a reconnect Supabase presence can briefly be empty before phones re-track.
+    // Keep the existing lobby and test bot for a short grace period.
+    if(TV.state.phase==='lobby'&&!onlinePlayers.length
+      &&TV.state.players.some(p=>p.id!==TEST_BOT_ID)){
+      if(!TV.emptyPresenceSince)TV.emptyPresenceSince=Date.now();
+      if(Date.now()-TV.emptyPresenceSince<4500){
+        clearTimeout(TV.presenceTimer);
+        TV.presenceTimer=setTimeout(()=>{TV.presenceTimer=null;void presence();},4600);
+        return;
+      }
+    }else{
+      TV.emptyPresenceSince=0;
+      clearTimeout(TV.presenceTimer);
+      TV.presenceTimer=null;
+    }
+    TV.people=onlinePlayers;
     if(TV.state.phase!=='lobby'){
       const online=new Set(TV.people.map(p=>p.id));
       const nextId=(online.has(TV.state.controllerId)?TV.state.controllerId:null)
@@ -330,7 +346,7 @@
       new QRCode(node,{text:url.toString(),width:225,height:225,correctLevel:QRCode.CorrectLevel.M});
     }catch{if(node.isConnected)node.textContent=TV.code;}
   }
-  addEventListener('beforeunload',()=>{clearTimeout(TV.botTimer);clearInterval(TV.timer);if(TV.client&&TV.channel)void TV.client.removeChannel(TV.channel);});
+  addEventListener('beforeunload',()=>{clearTimeout(TV.presenceTimer);clearTimeout(TV.botTimer);clearInterval(TV.timer);if(TV.client&&TV.channel)void TV.client.removeChannel(TV.channel);});
   renderIntro();
   void createRoom();
 })();
