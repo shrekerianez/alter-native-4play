@@ -39,7 +39,7 @@
     shell('<div class="logic-card" style="margin:auto 0"><div class="logic-label">Вечеринка на телевизоре</div><h1>Вход в игру</h1><p>Введи имя. Других приложений устанавливать не нужно.</p><div class="logic-label">Комната '+esc(C.code)+'</div><form id="logicJoin"><input name="name" maxlength="20" autocomplete="nickname" placeholder="Твоё имя" value="'+esc(last)+'" required><button type="submit">Присоединиться →</button></form>'+(error?'<div class="logic-error">'+esc(error)+'</div>':'')+'</div><a href="./" class="logic-link">На главную 4PLAY</a>');
   }
   function renderWaiting(){
-    shell('<div class="logic-card" style="margin:auto 0;text-align:center"><div class="logic-label">Подключаемся к '+esc(C.code)+'</div><h1>Минуточку…</h1><p>Телевизор скоро покажет тебя в списке участников.</p></div>');
+    shell('<div class="logic-card" style="margin:auto 0;text-align:center"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>'+(C.client?'Восстанавливаем связь…':'Подключаемся…')+'</h1><p>Комната сохранена. Вернёшься в игру, как только соединение восстановится.</p></div>');
   }
   function scores(){
     const s=C.state;
@@ -163,8 +163,10 @@
             await C.channel.send({type:'broadcast',event:'hello',payload:{playerId:C.playerId}});
             render();
           }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'){
-            C.online=false;C.client=null;C.channel=null;
-            shell('<div class="logic-card" style="margin:auto 0"><h1>Нет связи</h1><p>Не удаётся соединиться с телевизором. Проверь интернет и повтори.</p><button type="button" data-logic-phone="retry">Повторить</button></div>');
+            // Preserve the existing channel and player identity while Supabase reconnects.
+            console.warn('4PLAY Logic: телефон восстанавливает связь:',status);
+            C.online=false;
+            renderWaiting();
           }
         });
     }catch(e){console.error('Logic phone join',e);C.client=null;C.channel=null;renderJoin('Не удалось подключиться.');}
