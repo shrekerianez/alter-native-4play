@@ -45,6 +45,7 @@ jobs:
           node scripts/test-logic-answers.cjs
           node scripts/test-logic-testbot.cjs
           node scripts/test-logic-qr.cjs
+          node scripts/test-logic-tv-layout.cjs
 
       - name: Validate card JSON
         run: |
