@@ -1,4 +1,4 @@
-const CACHE_NAME = '4play-shell-v22';
+const CACHE_NAME = '4play-shell-v23';
 const APP_SHELL = [
   './',
   './index.html',
@@ -23,6 +23,8 @@ const APP_SHELL = [
   './logic-answer-check.js',
   './logic-tv.js',
   './logic-phone.js',
+  './logic-audio.js',
+  './logic-qr-scan.js',
   './supabase-config.js',
   './manifest.webmanifest',
   './icons/apple-touch-icon.png',
