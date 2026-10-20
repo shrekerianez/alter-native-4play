@@ -65,5 +65,36 @@ vm.runInNewContext(host,ctx);
  assert.equal(TV.state.players.length,2,'Two real players replace bot');
  assert.equal(TV.state.testBotEnabled,false,'Bot is disabled when real friend joins');
  assert.ok(TV.state.players.every(p=>!p.isBot),'No bot in normal game');
- console.log('PASS: solo organizer, virtual second team, simulated answer, automatic bot removal');
+ // Expand the lobby to twelve actual participants.
+ TV.state.phase='lobby';
+ connected=Array.from({length:12},(_,i)=>({
+   role:'logic-player',id:i===0?'human':'player-'+i,name:'Игрок '+(i+1),joinedAt:i+1,
+   avatar:{kind:'emoji',value:i===0?'🦄':'🤡'}
+ }));
+ await presence();
+ assert.equal(TV.state.players.length,12,'All twelve players join the lobby');
+ assert.equal(TV.state.players.filter(p=>p.team===0).length,6,'Team A has six');
+ assert.equal(TV.state.players.filter(p=>p.team===1).length,6,'Team B has six');
+ assert.equal(TV.state.players[0].avatar.value,'🦄','Custom emoji reaches TV state');
+
+ await handleControl({playerId:'player-1',command:'rename-teams',names:['Не хозяин','Другая']});
+ assert.ok(!TV.state.teamNames,'Non-organizer cannot rename teams');
+ await handleControl({playerId:'human',command:'rename-teams',names:['Огурцы','Бешеные тапки']});
+ assert.equal(TV.state.teamNames[0],'Огурцы','Organizer renames first team');
+ assert.equal(TV.state.teamNames[1],'Бешеные тапки','Organizer renames second team');
+ assert.ok(el.innerHTML.includes('Бешеные тапки'),'TV lobby shows renamed team');
+ await handleControl({playerId:'human',command:'rename-teams',names:['Одинаковые','Одинаковые']});
+ assert.equal(TV.state.teamNames[0],'Огурцы','Duplicate team names rejected');
+
+ // JPEG thumbnails are transported through presence and persisted in host state.
+ const photo='data:image/jpeg;base64,'+Buffer.from('tiny-pic').toString('base64');
+ connected[1].avatar={kind:'photo',value:photo};
+ await presence();
+ assert.equal(TV.state.players[1].avatar.value,photo,'Photo arrives in game state');
+
+ connected.push({role:'logic-player',id:'player-12',name:'13-й игрок',joinedAt:13});
+ await presence();
+ assert.equal(TV.state.players.length,12,'13th player is not admitted');
+
+ console.log('PASS: solo bot, twelve balanced players, editable team names, emoji/photo avatars, room cap');
 })().catch(err=>{console.error(err);process.exitCode=1;});
