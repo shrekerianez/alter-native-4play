@@ -8,8 +8,10 @@
   document.body.classList.add('logic-tv-mode');
   const alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
   const TV = {code:clean(params.get('logic-tv')), client:null,channel:null,online:false,
-    people:[], state:null,timer:null,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false};
+    people:[], state:null,timer:null,botTimer:null,qrLoading:null,hostId:'logic-tv-'+uuid(),busy:false};
   const REVEAL_MS=7500;
+  const TEST_BOT_ID='logic-test-bot';
+  const BOT_RESPONSE_DELAY_MS=2800;
   function uuid(){return crypto.randomUUID ? crypto.randomUUID():Date.now()+'-'+Math.random().toString(36).slice(2);}
   function clean(s){return String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,5);}
   function code(){const b=new Uint8Array(5);crypto.getRandomValues(b);return Array.from(b,x=>alphabet[x%alphabet.length]).join('');}
@@ -19,6 +21,37 @@
   function question(){return DATA.questions[TV.state?.index||0];}
   function teamName(i){return i===0?'Розовые':'Фиолетовые';}
   function members(i){return (TV.state?.players||[]).filter(p=>p.team===i);}
+  function testBotEnabled(state=TV.state){
+    return !!state?.testBotEnabled && (state.players||[]).some(p=>p.id===TEST_BOT_ID);
+  }
+  function shouldTestBotReply(state=TV.state){
+    if(!state||state.phase!=='question'||state.buzz||!testBotEnabled(state))return false;
+    const bot=state.players.find(p=>p.id===TEST_BOT_ID);
+    const human=state.players.find(p=>p.id!==TEST_BOT_ID);
+    return !!human && !!bot && state.blockedTeams?.includes(human.team)
+      && !state.blockedTeams.includes(bot.team)
+      && Date.now()<state.deadline;
+  }
+  function queueBotReply(){
+    clearTimeout(TV.botTimer);TV.botTimer=null;
+    if(!shouldTestBotReply())return;
+    const atIndex=TV.state.index;
+    TV.botTimer=setTimeout(async()=>{
+      TV.botTimer=null;
+      if(!shouldTestBotReply()||TV.state.index!==atIndex)return;
+      await change(state=>{
+        if(!shouldTestBotReply(state)||state.index!==atIndex)return false;
+        const bot=state.players.find(p=>p.id===TEST_BOT_ID);
+        const correct=state.index%2===0;
+        state.lastResult={playerId:TEST_BOT_ID,correct,typo:false,expired:false,testBot:true};
+        state.deadline=0;
+        if(correct)state.scores[bot.team]+=1;
+        else state.blockedTeams.push(bot.team);
+        state.phase='reveal';
+        state.revealEndsAt=Date.now()+REVEAL_MS;
+      });
+    },BOT_RESPONSE_DELAY_MS);
+  }
   function persist(){try{if(TV.code&&TV.state)sessionStorage.setItem('4play.logic.tv.'+TV.code,JSON.stringify(TV.state));}catch{}}
   function readSaved(){try{const s=JSON.parse(sessionStorage.getItem('4play.logic.tv.'+TV.code)||'null');return s?.gameId==='logic'&&s.code===TV.code?s:null;}catch{return null;}}
   function header(label='Логическая вечеринка'){
@@ -30,11 +63,11 @@
   }
   function playerList(team){
     const a=(TV.state?.players||[]).filter(p=>p.team===team);
-    return a.length?a.map(p=>'<span class="logic-player-tag">'+esc(p.name)+'</span>').join(''):'<div class="logic-hint">Ожидаем игроков…</div>';
+    return a.length?a.map(p=>'<span class="logic-player-tag">'+(p.id===TEST_BOT_ID?'🤖 ':'')+esc(p.name)+'</span>').join(''):'<div class="logic-hint">Ожидаем игроков…</div>';
   }
   function renderLobby(){
     const count=TV.state?.players?.length||0;
-    frame('<main class="logic-lobby"><div class="logic-panel"><div class="logic-label">Комната для 2–8 игроков</div><div class="logic-code">'+esc(TV.code)+'</div><p class="logic-hint">'+count+' из 8 подключились · команды формируются автоматически</p><div class="logic-players"><div class="logic-team"><h3>● '+teamName(0)+'</h3>'+playerList(0)+'</div><div class="logic-team"><h3>● '+teamName(1)+'</h3>'+playerList(1)+'</div></div><div class="logic-row" style="margin-top:30px"><div class="logic-hint">'+(count<2?'Ждём минимум двух игроков…':'Организатор запускает шоу на своём смартфоне')+'</div></div></div><div class="logic-panel"><div id="logicQr" class="logic-qr" aria-label="QR код комнаты">'+esc(TV.code)+'</div><p class="logic-hint">Сканируйте QR камерой телефона<br>или введите код комнаты.</p><div class="logic-label">'+esc(location.origin+location.pathname)+'</div></div></main>','Игроки и команды');
+    frame('<main class="logic-lobby"><div class="logic-panel"><div class="logic-label">Комната для 2–8 игроков</div><div class="logic-code">'+esc(TV.code)+'</div><p class="logic-hint">'+count+' из 8 игроков'+(testBotEnabled()?' · 🧪 тестовый бот':'')+' · команды формируются автоматически</p><div class="logic-players"><div class="logic-team"><h3>● '+teamName(0)+'</h3>'+playerList(0)+'</div><div class="logic-team"><h3>● '+teamName(1)+'</h3>'+playerList(1)+'</div></div><div class="logic-row" style="margin-top:30px"><div class="logic-hint">'+(count<2?'Ждём минимум двух игроков…':'Организатор запускает шоу на своём смартфоне')+'</div></div></div><div class="logic-panel"><div id="logicQr" class="logic-qr" aria-label="QR код комнаты">'+esc(TV.code)+'</div><p class="logic-hint">Сканируйте QR камерой телефона<br>или введите код комнаты.</p><div class="logic-label">'+esc(location.origin+location.pathname)+'</div></div></main>','Игроки и команды');
     renderQr();
   }
   function tiles(q){
@@ -49,6 +82,7 @@
     const person=s?.buzz && s.players.find(p=>p.id===s.buzz.playerId);
     let description;
     if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+teamName(s.buzz.team)+' · вводит ответ на смартфоне</div>';
+    else if(shouldTestBotReply(s)) description='<div class="logic-buzz">🤖 Тест-бот думает…</div>';
     else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
     else description='<div class="logic-hint">Знаешь ответ? Нажми «ЗНАЮ!» на телефоне, затем напиши ответ.</div>';
     const control='<div class="logic-hint">Ответы принимаются со смартфонов · управление у организатора.</div>';
@@ -67,9 +101,10 @@
   }
   function render(){
     clearInterval(TV.timer);TV.timer=null;
+    clearTimeout(TV.botTimer);TV.botTimer=null;
     if(!TV.state)return renderIntro();
     if(TV.state.phase==='lobby')return renderLobby();
-    if(TV.state.phase==='question')return renderQuestion();
+    if(TV.state.phase==='question'){renderQuestion();queueBotReply();return;}
     if(TV.state.phase==='reveal')return renderReveal();
     if(TV.state.phase==='final')return renderFinal();
     renderLobby();
@@ -95,25 +130,29 @@
     TV.people=currentPresence();
     if(!TV.state)return;
     if(TV.state.phase!=='lobby'){
-      // If the organizer disconnects, choose the next currently online player.
       const online=new Set(TV.people.map(p=>p.id));
       const nextId=(online.has(TV.state.controllerId)?TV.state.controllerId:null)
-        ||TV.state.players.find(p=>online.has(p.id))?.id||'';
+        ||TV.state.players.find(p=>p.id!==TEST_BOT_ID&&online.has(p.id))?.id||'';
       if(nextId!==TV.state.controllerId)await change(s=>{s.controllerId=nextId;});
       return;
     }
-    const prev=new Map((TV.state.players||[]).map(p=>[p.id,p.team]));
-    let n=[0,0];
-    const people=TV.people.map(p=>{
-      const previous=prev.get(p.id);
-      const team=(previous===0||previous===1)?previous:(n[0]<=n[1]?0:1);
-      n[team]++;return {...p,team};
+    const humans=TV.people;
+    const previous=new Map((TV.state.players||[]).filter(p=>p.id!==TEST_BOT_ID).map(p=>[p.id,p.team]));
+    const testBot=!!TV.state.testBotEnabled && humans.length===1;
+    const n=[0,0];
+    const players=humans.map(p=>{
+      const prev=previous.get(p.id);
+      const team=testBot?0:((prev===0||prev===1)?prev:(n[0]<=n[1]?0:1));
+      n[team]++;
+      return {...p,team};
     });
-    if(Math.abs(n[0]-n[1])>1)people.forEach((p,i)=>p.team=i%2);
-    const controllerId=people[0]?.id||'';
-    if(JSON.stringify(people)===JSON.stringify(TV.state.players)
-      &&controllerId===TV.state.controllerId)return;
-    await change(s=>{s.players=people;s.controllerId=controllerId;});
+    if(!testBot&&Math.abs(n[0]-n[1])>1)players.forEach((p,i)=>p.team=i%2);
+    if(testBot)players.push({id:TEST_BOT_ID,name:'Тест-бот',team:1,isBot:true});
+    const controllerId=humans[0]?.id||'';
+    if(JSON.stringify(players)===JSON.stringify(TV.state.players)
+      &&controllerId===TV.state.controllerId
+      &&testBot===!!TV.state.testBotEnabled)return;
+    await change(s=>{s.players=players;s.controllerId=controllerId;s.testBotEnabled=testBot;});
   }
   function tick(){
     const s=TV.state;
@@ -215,6 +254,12 @@
     const online=TV.people.some(p=>p.id===id);
     if(!s||!id||!online||id!==s.controllerId||!s.players.some(p=>p.id===id))return;
     switch(payload?.command){
+      case 'test-bot':
+        if(s.phase==='lobby'&&TV.people.length===1){
+          await change(next=>{next.testBotEnabled=!next.testBotEnabled;});
+          await presence();
+        }
+        break;
       case 'start': if(s.phase==='lobby')await start();break;
       case 'skip': if(s.phase==='question')await reveal();break;
       case 'rematch': if(s.phase==='final')await reset(false);break;
@@ -226,7 +271,7 @@
     if(!configured())return renderIntro('Сначала нужно настроить Supabase Realtime.');
     TV.busy=true;TV.code=TV.code||code();
     history.replaceState(null,'','./?logic-tv='+encodeURIComponent(TV.code));
-    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0};
+    TV.state=readSaved()||{gameId:'logic',code:TV.code,version:1,phase:'lobby',players:[],index:0,scores:[0,0],deadline:0,buzz:null,blockedTeams:[],lastResult:null,controllerId:'',revealEndsAt:0,testBotEnabled:false};
     if(TV.state.phase==='reveal'&&!TV.state.revealEndsAt) TV.state.revealEndsAt=Date.now()+REVEAL_MS;
     persist();render();
     try{
@@ -262,7 +307,7 @@
       new QRCode(node,{text:url.toString(),width:225,height:225,correctLevel:QRCode.CorrectLevel.M});
     }catch{if(node.isConnected)node.textContent=TV.code;}
   }
-  addEventListener('beforeunload',()=>{clearInterval(TV.timer);if(TV.client&&TV.channel)void TV.client.removeChannel(TV.channel);});
+  addEventListener('beforeunload',()=>{clearTimeout(TV.botTimer);clearInterval(TV.timer);if(TV.client&&TV.channel)void TV.client.removeChannel(TV.channel);});
   renderIntro();
   void createRoom();
 })();
