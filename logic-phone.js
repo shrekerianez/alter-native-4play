@@ -119,6 +119,10 @@
   }
   function renderLobby(){
     const p=member();
+    if(!p && C.state?.players?.length>=12){
+      shell('<div class="logic-card" style="margin:auto 0;text-align:center"><h1>Комната заполнена</h1><p>Уже играют 12 человек. Новое место появится, когда кто-то выйдет из лобби.</p></div>');
+      return;
+    }
     shell('<div class="logic-card" style="margin-top:28px"><div class="logic-label">Комната '+esc(C.code)+'</div><h1>Ты в игре!</h1><p class="logic-team-name">'+esc(C.name)+' · '+(p?'Команда «'+teamName(p.team)+'»':'Подключаем к команде…')+'</p><p>'+(isOrganizer()?'Ты управляешь игрой. Пульт телевизора не нужен.':'Ждём, пока организатор начнёт игру.')+'</p>'+scores()+'<div class="logic-label">Игроков: '+(C.state?.players?.length||0)+' из 12'+(C.state?.testBotEnabled?' · 🧪 один настоящий + бот':'')+'</div></div>'+organizerControls('lobby')+avatarPicker()+'<div class="logic-status">Смотри на телевизор 📺</div>');
   }
   function renderQuestion(){
