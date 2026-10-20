@@ -45,7 +45,8 @@
     root.innerHTML = `
       <section class="screen">
         <div class="topbar"><button type="button" class="icon-btn" data-logic-home aria-label="Назад">‹</button><div class="brand-mini">AlterNative · 4PLAY</div><div></div></div>
-        <div class="hero"><div class="logo-mark">🧠</div><h1 style="font-size:48px">4PLAY Логика</h1><p class="lead">Введи код с телевизора, чтобы превратить телефон в пульт игрока.</p></div>
+        <div class="hero"><div class="logo-mark">🧠</div><h1 style="font-size:48px">4PLAY Логика</h1><p class="lead">Сканируй QR на телевизоре или введи код комнаты.</p></div>
+        <div class="logic-join-scan"><button type="button" class="btn btn-primary" data-logic-scan>📷 Сканировать QR-код</button></div>
         <form id="logicCodeForm" class="form-list">
           <label class="field"><span>Код комнаты</span><input name="code" maxlength="5" minlength="5" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="7KQ2A" required></label>
           <button class="btn btn-primary" type="submit">Присоединиться</button>
@@ -82,13 +83,26 @@
     logicButton.className = 'btn btn-secondary';
     logicButton.type = 'button';
     logicButton.dataset.logicLaunch = 'true';
-    logicButton.textContent = '🧠 Логика · Войти по коду TV';
+    logicButton.textContent = '🧠 Логика · Войти в игру';
     roomButton.insertAdjacentElement('afterend', logicButton);
+    const scanButton=document.createElement('button');
+    scanButton.className='btn btn-primary';
+    scanButton.type='button';
+    scanButton.dataset.logicScan='true';
+    scanButton.textContent='📷 Сканировать QR с телевизора';
+    logicButton.insertAdjacentElement('afterend',scanButton);
   }
 
   root?.addEventListener('click', event => {
     if (event.target.closest('[data-room-launch]')) openRoom();
     if (event.target.closest('[data-logic-launch]')) openLogicEntry();
+    if (event.target.closest('[data-logic-scan]')) {
+      if(!window.FOURPLAY_QR_SCANNER){openLogicEntry();return;}
+      void window.FOURPLAY_QR_SCANNER.open({onResult: code=>{
+        const url=new URL(location.href);url.search='';url.searchParams.set('logic-room',code);
+        location.href=url.toString();
+      }});
+    }
     if (event.target.closest('[data-logic-home]')) backToLocal();
     if (event.target.closest('[data-room-recover]')) backToLocal();
   });
