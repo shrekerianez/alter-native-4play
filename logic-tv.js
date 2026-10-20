@@ -65,7 +65,7 @@
   function persist(){try{if(TV.code&&TV.state)sessionStorage.setItem('4play.logic.tv.'+TV.code,JSON.stringify(TV.state));}catch{}}
   function readSaved(){try{const s=JSON.parse(sessionStorage.getItem('4play.logic.tv.'+TV.code)||'null');return s?.gameId==='logic'&&s.code===TV.code?s:null;}catch{return null;}}
   function header(label='Логическая вечеринка'){
-    return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div><div class="logic-row"><span class="logic-label">'+(TV.online?'● Онлайн':TV.everConnected?'○ Восстанавливаем связь':'○ Подключение')+'</span><span class="logic-label">Управление со смартфонов</span></div></header>';
+    return '<header class="logic-header"><div class="logic-brand">4PLAY <span>ЛОГИКА</span></div><div class="logic-label">'+esc(label)+'</div></header>';
   }
   function frame(body,label){root.innerHTML='<section class="logic-tv">'+header(label)+body+'</section>'; }
   function renderIntro(error=''){
