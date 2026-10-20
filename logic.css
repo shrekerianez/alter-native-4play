@@ -121,3 +121,17 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 .logic-winner-player .logic-player-avatar{width:clamp(55px,5vw,92px);height:clamp(55px,5vw,92px);border:3px solid rgba(255,255,255,.4);font-size:clamp(32px,3.6vw,58px)}
 .logic-winner-player span:last-child{text-align:center}
 @media(max-height:700px){.logic-winner-player{gap:4px}.logic-winner-player .logic-player-avatar{width:53px;height:53px;font-size:28px}}
+
+/* Camera QR scanner on Android Chrome and iOS Safari: fixed overlay, no page navigation. */
+.logic-join-scan{margin:15px 0}
+.logic-join-scan .btn{width:100%}
+.logic-scan-overlay{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:clamp(12px,3vw,28px);background:rgba(5,5,14,.96);color:#fff;overscroll-behavior:contain}
+.logic-scanner{width:min(100%,490px);max-height:calc(100dvh - 24px);overflow:auto;display:flex;flex-direction:column;gap:17px;padding:clamp(14px,3vw,26px);border-radius:28px;border:1px solid rgba(255,255,255,.18);background:linear-gradient(145deg,#1d172f,#0b0b15);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+.logic-scanner header{display:flex;justify-content:space-between;gap:10px;align-items:center;font-size:clamp(18px,5vw,24px);font-weight:900}
+.logic-scanner button{cursor:pointer;color:#fff}
+.logic-scanner header button{min-width:44px;min-height:44px;font-size:20px;border-radius:15px;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.12)}
+.logic-camera-box{position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;border-radius:24px;background:#03030a}
+.logic-camera-box video{width:100%;height:100%;object-fit:cover}
+.logic-camera-frame{pointer-events:none;position:absolute;inset:15%;border:4px solid #c689ff;border-radius:30px;box-shadow:0 0 0 999px rgba(0,0,0,.17)}
+.logic-scanner [data-scan-status]{margin:0;color:#dfd5eb;min-height:42px;text-align:center;line-height:1.5;font-size:16px}
+.logic-scanner .logic-scan-manual{background:linear-gradient(125deg,#8652eb,#e45090);border:0;border-radius:18px;min-height:55px;font-size:17px;font-weight:850}
