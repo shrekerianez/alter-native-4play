@@ -112,7 +112,7 @@
     const q=question(), s=TV.state, round=DATA.rounds.find(r=>r.id===q?.round);
     const person=s?.buzz && s.players.find(p=>p.id===s.buzz.playerId);
     let description;
-    if(person) description='<div class="logic-buzz">'+esc(person.name)+' · '+esc(teamName(s.buzz.team))+' · вводит ответ на смартфоне</div>';
+    if(person) description='<div class="logic-buzz logic-answering-person">'+avatarMarkup(person)+'<span>'+esc(person.name)+' · '+esc(teamName(s.buzz.team))+' · отвечает…</span></div>';
     else if(shouldTestBotReply(s)) description='<div class="logic-buzz">🤖 Тест-бот думает…</div>';
     else if(s.lastResult?.testBot && !s.lastResult.correct) description='<div class="logic-buzz">🤖 Тест-бот ошибся! Твоя очередь.</div>';
     else if(s.lastResult && !s.lastResult.correct) description='<div class="logic-buzz">Ответ не засчитан. Шанс другой команде!</div>';
@@ -129,7 +129,9 @@
   function renderFinal(){
     const scores=TV.state.scores;
     const winner=scores[0]===scores[1]?'Ничья!':teamName(scores[0]>scores[1]?0:1)+' победили!';
-    frame('<main class="logic-final"><div class="logic-label">Финал вечеринки</div><h1>🏆 '+esc(winner)+'</h1><div class="logic-code">'+scores[0]+' : '+scores[1]+'</div><p class="logic-hint">Спасибо за игру! Готовы ещё немного напрячь извилины?</p><div class="logic-hint">Организатор выбирает реванш или возврат в лобби на своём смартфоне.</div></main>','Результаты');
+    const winning=TV.state.players.filter(p=>scores[0]===scores[1]||p.team===(scores[0]>scores[1]?0:1));
+    const portraits='<div class="logic-winner-portraits">'+winning.map(p=>'<div class="logic-winner-player">'+avatarMarkup(p)+'<span>'+esc(p.name)+'</span></div>').join('')+'</div>';
+    frame('<main class="logic-final"><div class="logic-label">Финал вечеринки</div><h1>🏆 '+esc(winner)+'</h1>'+portraits+'<div class="logic-code">'+scores[0]+' : '+scores[1]+'</div><p class="logic-hint">Спасибо за игру! Готовы ещё немного напрячь извилины?</p><div class="logic-hint">Организатор выбирает реванш или возврат в лобби на своём смартфоне.</div></main>','Результаты');
   }
   function render(){
     clearInterval(TV.timer);TV.timer=null;
