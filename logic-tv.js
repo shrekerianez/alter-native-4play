@@ -24,12 +24,14 @@
   function question(){return DATA.questions[TV.state?.index||0];}
   function teamName(i){return TV.state?.teamNames?.[i]||DEFAULT_TEAMS[i];}
   function cleanTeam(value){
-    return String(value||'').replace(/[<>\\u0000-\\u001F]/g,'').trim().slice(0,20);
+    return String(value||'').replace(/[<>]/g,'').trim().slice(0,20);
   }
   function safeAvatar(raw){
     if(raw?.kind==='emoji'&&FUN_AVATARS.includes(raw.value))return {kind:'emoji',value:raw.value};
+    const prefix='data:image/jpeg;base64,';
     if(raw?.kind==='photo'&&typeof raw.value==='string'
-      &&raw.value.length<=22000&&/^data:image\\/jpeg;base64,[a-z0-9+/=]+$/i.test(raw.value))
+      &&raw.value.length<=12000&&raw.value.startsWith(prefix)
+      &&new RegExp('^[A-Za-z0-9+/=]+$').test(raw.value.slice(prefix.length)))
       return {kind:'photo',value:raw.value};
     return {kind:'emoji',value:'🥸'};
   }
@@ -126,7 +128,7 @@
   }
   function renderFinal(){
     const scores=TV.state.scores;
-    const winner=scores[0]===scores[1]?'Ничья!':esc(teamName(scores[0]>scores[1]?0:1))+' победили!';
+    const winner=scores[0]===scores[1]?'Ничья!':teamName(scores[0]>scores[1]?0:1)+' победили!';
     frame('<main class="logic-final"><div class="logic-label">Финал вечеринки</div><h1>🏆 '+esc(winner)+'</h1><div class="logic-code">'+scores[0]+' : '+scores[1]+'</div><p class="logic-hint">Спасибо за игру! Готовы ещё немного напрячь извилины?</p><div class="logic-hint">Организатор выбирает реванш или возврат в лобби на своём смартфоне.</div></main>','Результаты');
   }
   function render(){
