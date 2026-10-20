@@ -135,3 +135,56 @@ body.logic-tv-mode .app{display:block;padding:0;max-width:none;width:100vw;min-h
 .logic-camera-frame{pointer-events:none;position:absolute;inset:15%;border:4px solid #c689ff;border-radius:30px;box-shadow:0 0 0 999px rgba(0,0,0,.17)}
 .logic-scanner [data-scan-status]{margin:0;color:#dfd5eb;min-height:42px;text-align:center;line-height:1.5;font-size:16px}
 .logic-scanner .logic-scan-manual{background:linear-gradient(125deg,#8652eb,#e45090);border:0;border-radius:18px;min-height:55px;font-size:17px;font-weight:850}
+
+/* 16:9 broadcast canvas. All TV content sits inside a single 1920x1080 scene,
+   uniformly fitted with black bars on non-16:9 screens, never scrolling/zooming. */
+html.logic-tv-mode,body.logic-tv-mode{width:100%!important;height:100%!important;overflow:hidden!important;overscroll-behavior:none;touch-action:none}
+body.logic-tv-mode #app{position:fixed!important;inset:0!important;display:block!important;width:100vw!important;height:100vh!important;height:100dvh!important;min-height:0!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden!important;background:#07070b!important;overscroll-behavior:none}
+body.logic-tv-mode #app>.logic-tv{box-sizing:border-box!important;position:absolute!important;top:0!important;left:0!important;width:1920px!important;min-width:1920px!important;max-width:1920px!important;height:1080px!important;min-height:1080px!important;max-height:1080px!important;overflow:hidden!important;padding:42px 58px!important;transform-origin:top left!important;transform:translate(var(--logic-x,0px),var(--logic-y,0px)) scale(var(--logic-s,1))!important;display:flex!important;flex-direction:column!important;gap:18px!important}
+body.logic-tv-mode .logic-header{flex:none;min-height:65px!important;height:65px!important}
+body.logic-tv-mode .logic-brand{font-size:43px!important}
+body.logic-tv-mode .logic-label{font-size:21px!important}
+body.logic-tv-mode .logic-hint{font-size:22px!important}
+body.logic-tv-mode .logic-intro{min-height:0;overflow:hidden}
+body.logic-tv-mode .logic-intro h1{font-size:110px!important}
+body.logic-tv-mode .logic-intro p{font-size:30px!important}
+body.logic-tv-mode .logic-lobby{display:grid!important;grid-template-columns:minmax(0,1.32fr) minmax(0,.68fr)!important;gap:28px!important;flex:1!important;min-height:0!important;max-height:915px!important;width:100%!important;align-items:stretch!important;margin:0!important;overflow:hidden!important}
+body.logic-tv-mode .logic-lobby>.logic-panel{box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0;min-height:0;max-height:100%;overflow:hidden;padding:30px!important;border-radius:33px}
+body.logic-tv-mode .logic-lobby .logic-code{font-size:116px!important;letter-spacing:.10em!important;line-height:1.12!important;margin:10px 0!important}
+body.logic-tv-mode .logic-lobby .logic-players{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;width:100%!important;flex:none!important;gap:12px!important;margin:22px 0!important;text-align:left!important}
+body.logic-tv-mode .logic-lobby .logic-team{box-sizing:border-box;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-content:center;gap:10px;min-width:0;min-height:330px;max-height:365px;padding:16px!important;border-radius:20px;overflow:hidden}
+body.logic-tv-mode .logic-lobby .logic-team h3{grid-column:1/-1;font-size:27px!important;font-weight:850;margin:0!important;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+body.logic-tv-mode .logic-lobby .logic-player-tag{box-sizing:border-box;display:flex!important;width:100%;height:63px;min-height:63px;max-height:63px;min-width:0;max-width:100%;margin:0!important;padding:5px!important;gap:8px;overflow:hidden;border-radius:19px;font-size:17px!important}
+body.logic-tv-mode .logic-lobby .logic-player-avatar{width:45px!important;height:45px!important;min-width:45px!important;font-size:29px!important}
+body.logic-tv-mode .logic-lobby .logic-player-name{font-size:16px!important;max-width:calc(100% - 55px)!important;text-overflow:ellipsis;overflow:hidden;white-space:nowrap}
+body.logic-tv-mode .logic-lobby .logic-qr{width:272px!important;height:272px!important;min-width:272px!important;min-height:272px!important;max-width:272px!important;max-height:272px!important;margin:16px auto!important;padding:12px!important}
+body.logic-tv-mode .logic-lobby .logic-row{min-height:45px;max-height:75px}
+body.logic-tv-mode .logic-lobby>.logic-panel:last-child .logic-label{font-size:18px!important;max-width:100%;overflow-wrap:anywhere;line-height:1.35}
+body.logic-tv-mode .logic-arena{flex:1!important;min-height:0!important;max-height:915px!important;overflow:hidden!important;gap:14px!important}
+body.logic-tv-mode .logic-topline{flex:none;height:122px!important;max-height:122px!important}
+body.logic-tv-mode .logic-score small{font-size:25px!important}
+body.logic-tv-mode .logic-score strong{font-size:78px!important}
+body.logic-tv-mode .logic-clock{height:115px!important;width:115px!important;font-size:63px!important}
+body.logic-tv-mode .logic-stage{flex:1!important;min-height:0!important;max-height:700px!important;gap:14px!important;overflow:hidden!important}
+body.logic-tv-mode .logic-stage h1{font-size:55px!important;line-height:1.12!important;max-width:100%;overflow-wrap:anywhere}
+body.logic-tv-mode .logic-tiles{flex:none!important;display:flex!important;gap:24px!important;margin:16px auto!important;flex-wrap:nowrap!important;width:100%!important;justify-content:center!important;align-items:center!important}
+body.logic-tv-mode .logic-tile{box-sizing:border-box;flex:none!important;width:290px!important;height:290px!important;aspect-ratio:1!important;font-size:148px!important;border-radius:40px!important}
+body.logic-tv-mode .logic-plus{font-size:67px!important}
+body.logic-tv-mode .logic-buzz{font-size:37px!important;max-width:100%;white-space:normal}
+body.logic-tv-mode .logic-answer{font-size:77px!important;max-width:100%;line-height:1.12;overflow-wrap:anywhere}
+body.logic-tv-mode .logic-explain{font-size:27px!important;max-width:1250px!important;line-height:1.25!important;margin:4px!important}
+body.logic-tv-mode .logic-ribbon{flex:none;min-height:65px!important;height:65px!important}
+body.logic-tv-mode .logic-final{box-sizing:border-box;flex:1;min-height:0;max-height:915px;justify-content:center;gap:20px!important;overflow:hidden}
+body.logic-tv-mode .logic-final h1{font-size:83px!important;max-height:230px;line-height:1.1!important;overflow-wrap:anywhere}
+body.logic-tv-mode .logic-final .logic-code{font-size:94px!important;margin:2px!important}
+body.logic-tv-mode .logic-winner-portraits{max-width:1620px!important;max-height:380px!important;gap:20px!important}
+body.logic-tv-mode .logic-winner-player{min-width:88px!important;max-width:140px!important;font-size:21px!important;overflow:hidden}
+body.logic-tv-mode .logic-winner-player .logic-player-avatar{width:88px!important;height:88px!important;font-size:48px!important}
+body.logic-tv-mode .logic-final .logic-hint{font-size:22px!important;margin:0!important}
+body.logic-tv-mode .logic-error{max-width:100%;max-height:170px;overflow:hidden}
+/* Audio settings only exist on the phone; the TV remains a distraction-free stage. */
+.logic-phone .logic-audio-controls{display:flex;flex-direction:column;gap:11px;padding:16px;border:1px solid rgba(255,255,255,.17);border-radius:24px;background:rgba(255,255,255,.065)}
+.logic-phone .logic-audio-controls .logic-label{font-size:14px;color:#dbbaff}
+.logic-phone .logic-audio-buttons{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:9px}
+.logic-phone .logic-audio-buttons button{min-width:0;min-height:52px;padding:8px;font-size:16px;background:rgba(255,255,255,.14);color:#fff}
+.logic-phone .logic-audio-buttons button[data-logic-phone="sound-toggle"]{background:linear-gradient(120deg,#7258c9,#b14bb2)}
